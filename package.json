@@ -1,0 +1,32 @@
+{
+  "name": "taskmaabackend",
+  "version": "1.0.0",
+  "description": "Backend of TaskMaa. Include all authentication from scratch, integrates AI api's to give motherly responses, Track users performance and live competetions with friends and many more features.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts", 
+    "build": "npx tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "TaskMaa",
+    "TaskManagement",
+    "Focus",
+    "Boosting",
+    "Motherly",
+    "supervision"
+  ],
+  "author": "Aakrit",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  }
+}

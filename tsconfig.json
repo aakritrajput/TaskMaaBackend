@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    // File layout
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Environment & Module
+    "module": "commonjs",  // nodenext  if using modulejs imports 
+    "target": "es2020",             // Modern JS target
+    "moduleResolution": "node",    // "nodenext" for commonjs 
+    "esModuleInterop": true,        // Fix default import issues for CommonJS
+    "allowSyntheticDefaultImports": true, // Optional, works with esModuleInterop
+
+    // Type declarations
+    "types": ["node"],              // Include Node types
+    "lib": ["esnext"],              // JS features
+
+    // Output options
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Strict type checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Module & import options
+    "isolatedModules": true,
+    "skipLibCheck": true
+  }
+}

@@ -29,6 +29,13 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+
+    // Things required in chat feature
+    unreadMessages: {  //  total unread across all chats
+      type: Number, 
+      default: 0 
+    },
+    lastOnline: { type: Date },
   },
   { timestamps: true }
 );

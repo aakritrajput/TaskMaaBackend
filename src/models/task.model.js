@@ -10,8 +10,8 @@ const taskSchema = new Schema({
         type: String, 
         required: true 
     },
-    description: { 
-        type: String 
+    description: {
+        type: String
     },
     importance: { 
         type: String, 

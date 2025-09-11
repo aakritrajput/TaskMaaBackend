@@ -29,7 +29,10 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
-
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
     // Things required in chat feature
     unreadMessages: {  //  total unread across all chats
       type: Number, 

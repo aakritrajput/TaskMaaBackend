@@ -21,7 +21,7 @@ const userSchema = new Schema(
       lowercase: true,
       trim: true,
     },
-    password: {
+    hashedPassword: {
       type: String,
       required: true,
     },
@@ -44,21 +44,21 @@ const userSchema = new Schema(
 );
 
 userSchema.pre("save", async function(next){
-    if(this.isModified("password")){
-        this.password = await bcrypt.hash(this.password, 10)
+    if(this.isModified("hashedPassword")){
+        this.hashedPassword = await bcrypt.hash(this.hashedPassword, 10) // if the hashed password is changed so before saving it hash the new password !!
     }
     next()
 })
 
 userSchema.methods.comparePassword = async function(enteredPassword){
-    return await bcrypt.compare(enteredPassword, this.password)
+    return await bcrypt.compare(enteredPassword, this.hashedPassword)
 }
 
-userSchema.methods.generateAccessToken = async function(){
+userSchema.methods.generateAccessToken = function(){
     return jwt.sign({_id: this._id, email: this.email, username: this.username}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: process.env.ACCESS_TOKEN_EXPIRY})
 }
 
-userSchema.methods.generateRefreshToken = async function(){
+userSchema.methods.generateRefreshToken = function(){
     return jwt.sign({_id: this._id}, process.env.REFRESH_TOKEN_SECRET, {expiresIn: process.env.REFRESH_TOKEN_EXPIRY})
 }
 

@@ -78,9 +78,19 @@ const login = async(req, res) => {
     }
 }
 
+const authCheck = (req, res) =>{
+    if (req.user){
+        const user = req.user
+        res.status(200).json(new ApiResponse(200, {user}, "User "))
+    }else{
+        res.status(401).json({message: 'unAuthenticated Request'})
+    }
+}
+
+
 
 export {
     register, 
     login,
-
+    authCheck
 }

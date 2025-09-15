@@ -6,9 +6,9 @@ const taskSchema = new Schema({
         ref: "User", 
         required: true 
     },
-    title: { 
-        type: String, 
-        required: true 
+    title: {
+        type: String,
+        required: true
     },
     description: {
         type: String
@@ -29,7 +29,7 @@ const taskSchema = new Schema({
         default: "general" 
     },
     dueDate: { 
-        type: Date 
+        type: Date
     },
 }, { timestamps: true });
 

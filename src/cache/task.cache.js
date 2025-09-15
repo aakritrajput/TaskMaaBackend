@@ -36,3 +36,8 @@ const delete_task_in_cache = async(task_id) => {
     }
 }
 
+export {
+    task_to_cache,
+    task_from_cache,
+    delete_task_in_cache
+}

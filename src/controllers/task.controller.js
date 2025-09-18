@@ -9,7 +9,7 @@
 // request to be the part of that public gorup task
 
 import { task_from_cache, task_to_cache } from "../cache/task.cache.js";
-import { add_latest_task_to_users_cache_tasks, user_tasks_from_cache, user_tasks_to_cache } from "../cache/user.cache.js";
+import { invalidate_users_tasks_cache_complete, user_tasks_from_cache, user_tasks_to_cache } from "../cache/user.cache.js";
 import { Task } from "../models/task.model";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -39,7 +39,7 @@ const addTask = async(req, res) => {
         const returnedTask = await Task.create(taskData)
         
         await task_to_cache(returnedTask, 1800) // the result will be "OK" if saved else null but lets not check that as we are like -- let it be independent as we will be optionally checking if there in cache pick it from there and if not then use the database -- so no worries !!
-        
+        await invalidate_users_tasks_cache_complete(user._id)
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
@@ -74,41 +74,64 @@ const getTask = async(req, res) => {
     }
 }
 
-const getMyTasks = async(req, res) => {  // here we need to do an update that we are only suppose to add some information to the data sending as this is not for detailed discription of tasks
+const getAllTasks = async (req, res) => {
     try {
-        const userId = req.user._id
-        const {page, offset=20} = req.query
+        const userId = req.user._id;
+        const { limit = 20, cursor } = req.query; 
+        const limitNumber = parseInt(limit, 10);  
+
+        if (!userId) {
+            throw new ApiError(401, "Unauthorized Request! Please login first to access your tasks.");
+        } 
+
+        const cachedData = await user_tasks_from_cache(userId, cursor, limit)
+        if (cachedData) {
+            res.status(200).json(new ApiResponse(200, JSON.parse(cachedData), "Here are your tasks (from cache)"));
+        }
+
+        let query = { user: userId };
+        if (cursor) {
+            query.createdAt = { $lt: new Date(cursor) }; // fetching tasks created before given cursor timestamp
+        } 
         
-        if(userId){
-            throw new ApiError(401, "UnAuthorized Request !! Please login first to access your tasks..")
-        }
-        if(Number(page) == 1){
-            const tasksFromCache = await user_tasks_from_cache(userId)
-            if(tasksFromCache){
-                res.status(200).json(new ApiResponse(200, tasksFromCache, "Here are your tasks !!"))
-                return ;
-            }
-        }
+        const tasks = await Task.find(query)
+          .sort({ createdAt: -1 }) // latest first
+          .limit(limitNumber + 1)   // +1 to check if there is more data ?
+          .lean();                  // lean() gives plain JS objects, faster  
+        
+        let nextCursor = null;
+        if (tasks.length > limitNumber) {
+            nextCursor = tasks[tasks.length - 1].createdAt.toISOString(); 
+            tasks.pop(); // remove the extra one
+        } 
 
-        const tasksFromDb = await Task.find({
-            user: userId,
-            type: 'general', // we are here only dealing with general tasks as i have planned that we will not show previous days tasks as they can be seperately called if user wanted to get those..
-        })
+        // final response
+        const responseData = {
+          tasks,
+          pagination: {
+            limit: limitNumber,
+            nextCursor,
+            hasMore: !!nextCursor //strict not operator --> can force any value to boolean
+          }
+        };    
 
-        if(tasksFromDb.length !== 0){
-            await user_tasks_to_cache(userId, tasksFromDb)
-        }
+        await user_tasks_to_cache(userId, responseData, nextCursor, limitNumber)
 
-        res.status(200).json(new ApiResponse(200, tasksFromDb, "Here are your tasks !!"))
+        res.status(200).json(new ApiResponse(200, responseData, "Here are your tasks!"));  
     } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || 'There was some error getting your tasks !!'})
+        console.error("Error in getAllTasks:", error.message);
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error getting your tasks!'});
     }
-}
+};
 
 const getMyGroupTasks = async(req, res) => {
     try {
         const userId = req.user._id;
+        if (!userId){
+            throw new ApiError(401, 'Unauthorized Request !!')
+        }
 
+        
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error getting your tasks !!'})
     }

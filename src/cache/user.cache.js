@@ -2,51 +2,55 @@ import { redis } from "../db/redis";
 
 USER_PREFIX = 'user:'
 
-const user_tasks_to_cache = async(user_id, tasks, page=1, limit=20, ttl=3600) => { // caching for 1 hour --> because on every creation and update we are invlalidating the data !!
+const user_tasks_to_cache = async (user_id, data, cursor, limit = 20, ttl = 3600) => {
     try {
-        const key = `${USER_PREFIX}${user_id}:tasks:${page}:${limit}`
-        const response = await redis.set(key, JSON.stringify(tasks), 'EX', ttl)
+        const key = `${USER_PREFIX}${user_id}:tasks:cursor:${cursor || 'start'}:limit:${limit}`;
+        const response = await redis.set(key, JSON.stringify(data), 'EX', ttl);
         return response;
     } catch (error) {
-        console.log(error.message)
+        console.error("Redis Cache Save Error:", error.message);
         return null;
     }
-}
+};
 
-const invalidate_users_tasks_cache_for_update = async(user_id, page=1, limit=20) => { // whenever a task is updated then we can invalidate that particular page that have that task and ask backend for latest one !!
+
+const invalidate_users_tasks_cache_for_update = async (user_id, cursor = 'start', limit = 20) => {
     try {
-        const key = `${USER_PREFIX}${user_id}:tasks:${page}:${limit}`
-        const response = await redis.del(key)
-        return response ;
+        const key = `${USER_PREFIX}${user_id}:tasks:cursor:${cursor || 'start'}:limit:${limit}`;
+        const response = await redis.del(key);
+        return response; // (0 or 1)
     } catch (error) {
-        console.log(error.message)
+        console.log('Cache Invalidate Error (Single):', error.message);
         return null;
     }
-}
+};
 
-const invalidate_users_tasks_cache_complete = async(user_id) => {  // now this is for invalidating the cache if a new task is added or any task deleted --> as if we just update a particular page's entries then the structure could exclude some of the tasks (in case of task creation ) and may have same task in 2 differnt entries (in case of deletion)
+
+const invalidate_users_tasks_cache_complete = async (user_id) => {
     try {
-        const keys = await redisClient.keys(`${USER_PREFIX}${user_id}:tasks:*`);
+        const keys = await redis.keys(`${USER_PREFIX}${user_id}:tasks:cursor:*`);
         if (keys.length > 0) {
-          await redisClient.del(...keys);
+            await redis.del(...keys); // Delete all keys for this user
         }
-        return "OK"
+        return "OK";
     } catch (error) {
-        console.log(error.message)
+        console.log('Cache Invalidate Error (Complete):', error.message);
         return null;
     }
-}
+};
 
-const user_tasks_from_cache = async(user_id, page=1, limit=20) => {
+
+const user_tasks_from_cache = async (user_id, cursor, limit = 20) => {
     try {
-        const key = `${USER_PREFIX}${user_id}:tasks:${page}:${limit}`
-        const tasks = await redis.get(key)
-        return tasks ? JSON.parse(tasks) : null ;
+        const key = `${USER_PREFIX}${user_id}:tasks:cursor:${cursor || 'start'}:limit:${limit}`;
+        const cachedData = await redis.get(key);
+        return cachedData ? JSON.parse(cachedData) : null;
     } catch (error) {
-        console.log(error.message)
+        console.error("Redis Cache Fetch Error:", error.message);
         return null;
     }
-}
+};
+
 
 export {
     user_tasks_to_cache,

@@ -9,7 +9,7 @@
 // request to be the part of that public gorup task
 
 import { task_from_cache, task_to_cache } from "../cache/task.cache.js";
-import { update_user_tasks_cache, user_tasks_from_cache, user_tasks_to_cache } from "../cache/user.cache.js";
+import { add_latest_task_to_users_cache_tasks, user_tasks_from_cache, user_tasks_to_cache } from "../cache/user.cache.js";
 import { Task } from "../models/task.model";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -39,8 +39,7 @@ const addTask = async(req, res) => {
         const returnedTask = await Task.create(taskData)
         
         await task_to_cache(returnedTask, 1800) // the result will be "OK" if saved else null but lets not check that as we are like -- let it be independent as we will be optionally checking if there in cache pick it from there and if not then use the database -- so no worries !!
-        await update_user_tasks_cache(user._id, returnedTask) // for storing this newly created task in users dashboard cache !!
-
+        
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
@@ -75,7 +74,7 @@ const getTask = async(req, res) => {
     }
 }
 
-const getMyGeneralTasks = async(req, res) => {  // here we need to do an update that we are only suppose to add some information to the data sending as this is not for detailed discription of tasks
+const getMyTasks = async(req, res) => {  // here we need to do an update that we are only suppose to add some information to the data sending as this is not for detailed discription of tasks
     try {
         const userId = req.user._id
         const {page, offset=20} = req.query
@@ -83,12 +82,12 @@ const getMyGeneralTasks = async(req, res) => {  // here we need to do an update 
         if(userId){
             throw new ApiError(401, "UnAuthorized Request !! Please login first to access your tasks..")
         }
-
-        const tasksFromCache = await user_tasks_from_cache(userId)
-
-        if(tasksFromCache){
-            res.status(200).json(new ApiResponse(200, tasksFromCache, "Here are your tasks !!"))
-            return ;
+        if(Number(page) == 1){
+            const tasksFromCache = await user_tasks_from_cache(userId)
+            if(tasksFromCache){
+                res.status(200).json(new ApiResponse(200, tasksFromCache, "Here are your tasks !!"))
+                return ;
+            }
         }
 
         const tasksFromDb = await Task.find({

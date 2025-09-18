@@ -17,7 +17,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 const addTask = async(req, res) => {
     try {
-        const {title, description, importance, status, type, dueDate} = req.body
+        const {title} = req.body  // only hardcoding the required field which will not be having any default value 
         if (title.trim().length == 0){
             throw new ApiError(400, "Please Provide a valid title !!")
         }
@@ -30,7 +30,7 @@ const addTask = async(req, res) => {
             user: user._id,
             title
         }
-        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){ 
+        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are checking for not required fields as we will be having some sought of default values for them in our model !!
             const value = req.body[field];  
             if (!value) continue ; // it will skip all falsy values !!
             taskData[field] = value;

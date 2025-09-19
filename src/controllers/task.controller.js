@@ -231,14 +231,14 @@ const editTask = async(req, res) => {
         }
         const user = req.user
         if(!user){
-            throw new ApiError(401, "Unauthorized request !!")  // this is already checked in auth middleware but just for safety or can say double check !!
+            throw new ApiError(401, "Unauthorized request !!")
         }
 
         const taskData = {
             user: user._id,
             title
         }
-        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are checking for not required fields as we will be having some sought of default values for them in our model !!
+        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){
             const value = req.body[field];  
             if (!value) continue ; // it will skip all falsy values !!
             taskData[field] = value;

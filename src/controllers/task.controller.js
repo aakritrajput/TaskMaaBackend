@@ -8,8 +8,8 @@
 // add other members to group task
 // request to be the part of that public gorup task
 
-import { delete_task_in_cache, task_from_cache, task_to_cache } from "../cache/task.cache.js";
-import { cache_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_todays_tasks_cache } from "../cache/user.cache.js";
+//import { delete_task_in_cache, task_from_cache, task_to_cache } from "../cache/task.cache.js";
+import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/user.cache.js";
 import { Task } from "../models/task.model";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -37,8 +37,12 @@ const addTask = async(req, res) => {
         }
 
         const returnedTask = await Task.create(taskData)
-        
-        await task_to_cache(returnedTask, 1800) // the result will be "OK" if saved else null but lets not check that as we are like -- let it be independent as we will be optionally checking if there in cache pick it from there and if not then use the database -- so no worries !!
+
+        if(returnedTask.type == 'daily'){
+            await invalidate_todays_tasks(user._id)
+        }else{
+            await invalidate_general_tasks(user._id)
+        }
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
@@ -134,9 +138,13 @@ const deleteTask = async(req, res) => {
             throw new ApiError(400, 'Task Id not provided -- which is required !!')
         }
 
-        await Task.findByIdAndDelete(taskId)
-        await delete_task_in_cache(taskId) // for deleting complete information of the task in cache
-        await invalidate_users_tasks_cache_complete(userId) // for deleting the part stored along with other tasks
+        const deletedTask = await Task.findByIdAndDelete(taskId)
+
+        if(deletedTask.type == 'daily'){ // here we can apply deep check that if the daily task is today's task and if yes then only invalidate today's task cache else not similarly for general tasks also ---> if this deleted task also belongs to our cached tasks range !!
+            await invalidate_todays_tasks(userId)
+        }else{
+            await invalidate_general_tasks(userId)
+        }
         res.status(200).json(new ApiResponse(200, {}, 'Task Successfully deleted !!'))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error Deleting your task !!'});
@@ -171,6 +179,40 @@ const getTodaysTasks = async(req, res) => {
 
         if(tasks_from_db.length > 0){
             await cache_todays_tasks(userId, tasks_from_db)
+        }
+        
+        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))
+        
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting today's tasks !!"});
+    }
+}
+
+const getGeneralTasks = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, 'Unauthorized request !!')
+        }
+
+        const cachedData = await users_general_tasks_cache(userId)
+        if (cachedData) {
+            res.status(200).json(new ApiResponse(200, cachedData, "Here are your general tasks"))
+            return ;
+        }
+
+        const today = new Date();
+        const tasks_from_db = await Task.find({ // it returns task who's (due date + 7 days) is greator then today
+            $expr: {
+                $gt: [
+                    { $add: ["$dueDate", 7 * 24 * 60 * 60 * 1000] }, // dueDate + 7 days
+                    today
+                ]
+            }
+        });
+
+        if(tasks_from_db.length > 0){
+            await cache_general_tasks(userId, tasks_from_db)
         }
         
         res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))

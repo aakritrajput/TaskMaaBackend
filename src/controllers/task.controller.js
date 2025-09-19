@@ -221,3 +221,38 @@ const getGeneralTasks = async(req, res) => {
         res.status(error.statusCode || 500).json({message: error.message || "There was some error getting today's tasks !!"});
     }
 }
+
+const editTask = async(req, res) => {
+    try {
+        const productId = req.params
+        const {title} = req.body  // in update all the data should be sent from frontend .. here we are only checking for title but in an update all the data should be passed (but still thier might not be some data in that fild that's why only checking title)
+        if (title.trim().length == 0){
+            throw new ApiError(400, "title missing !!")
+        }
+        const user = req.user
+        if(!user){
+            throw new ApiError(401, "Unauthorized request !!")  // this is already checked in auth middleware but just for safety or can say double check !!
+        }
+
+        const taskData = {
+            user: user._id,
+            title
+        }
+        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are checking for not required fields as we will be having some sought of default values for them in our model !!
+            const value = req.body[field];  
+            if (!value) continue ; // it will skip all falsy values !!
+            taskData[field] = value;
+        }
+
+        const returnedTask = await Task.findByIdAndUpdate(productId, taskData)
+
+        if(returnedTask.type == 'daily'){
+            await invalidate_todays_tasks(user._id)
+        }else{
+            await invalidate_general_tasks(user._id)
+        }
+        res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
+    }
+}

@@ -8,8 +8,8 @@
 // add other members to group task
 // request to be the part of that public gorup task
 
-import { task_from_cache, task_to_cache } from "../cache/task.cache.js";
-import { invalidate_users_tasks_cache_complete, user_tasks_from_cache, user_tasks_to_cache } from "../cache/user.cache.js";
+import { delete_task_in_cache, task_from_cache, task_to_cache } from "../cache/task.cache.js";
+import { cache_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_todays_tasks_cache } from "../cache/user.cache.js";
 import { Task } from "../models/task.model";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -39,7 +39,6 @@ const addTask = async(req, res) => {
         const returnedTask = await Task.create(taskData)
         
         await task_to_cache(returnedTask, 1800) // the result will be "OK" if saved else null but lets not check that as we are like -- let it be independent as we will be optionally checking if there in cache pick it from there and if not then use the database -- so no worries !!
-        await invalidate_users_tasks_cache_complete(user._id)
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
@@ -124,15 +123,59 @@ const getAllTasks = async (req, res) => {
     }
 };
 
-const getMyGroupTasks = async(req, res) => {
+const deleteTask = async(req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = req.user._id
         if (!userId){
-            throw new ApiError(401, 'Unauthorized Request !!')
+            throw new ApiError(401, 'Unauthorized request !!')
+        }
+        const taskId = req.params
+        if (!taskId){
+            throw new ApiError(400, 'Task Id not provided -- which is required !!')
         }
 
+        await Task.findByIdAndDelete(taskId)
+        await delete_task_in_cache(taskId) // for deleting complete information of the task in cache
+        await invalidate_users_tasks_cache_complete(userId) // for deleting the part stored along with other tasks
+        res.status(200).json(new ApiResponse(200, {}, 'Task Successfully deleted !!'))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error Deleting your task !!'});
+    }
+}
+
+const getTodaysTasks = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, 'Unauthorized request !!')
+        }
+
+        const cachedData = await users_todays_tasks_cache(userId);
+        if (cachedData) {
+            res.status(200).json(new ApiResponse(200, cachedData, "Here are your today's tasks"))
+            return ;
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0); // Today at 00:00:00
+        
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999); // Today at 23:59:59.999
+        
+        const tasks_from_db = await Task.find({
+          createdAt: {
+            $gte: startOfDay,
+            $lt: endOfDay
+          }
+        });
+
+        if(tasks_from_db.length > 0){
+            await cache_todays_tasks(userId, tasks_from_db)
+        }
+        
+        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))
         
     } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || 'There was some error getting your tasks !!'})
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting today's tasks !!"});
     }
 }

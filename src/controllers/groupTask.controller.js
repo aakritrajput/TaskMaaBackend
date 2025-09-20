@@ -1,5 +1,6 @@
 import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache } from "../cache/groupTask.cache.js";
 import { GroupTask } from "../models/groupTaskModels/groupTask.model.js";
+import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -31,6 +32,16 @@ const creatGroupTask = async(req, res) => {
         }
 
         const returnedTask = await GroupTask.create(taskData)
+        
+        // also lets add the creator to grouptask members collection also 
+
+        await GroupTaskMember.create({
+            groupTaskId: returnedTask._id,
+            userId,
+            status: 'accepted',
+            role: 'admin',
+            completionStatus: 'in_progress', // default 
+        })
 
         await invalidate_groupTask_cache(userId);
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the GroupTask !!"))
@@ -147,5 +158,5 @@ export {
     creatGroupTask,
     getMyGroupTask,
     deleteGroupTask,
-
+    editGroupTask,
 }

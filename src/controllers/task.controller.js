@@ -195,6 +195,7 @@ const getGeneralTasks = async(req, res) => {
 
         const today = new Date();
         const tasks_from_db = await Task.find({ // it returns task who's (due date + 7 days) is greator then today
+            user: userId,
             $expr: {
                 $gt: [
                     { $add: ["$dueDate", 7 * 24 * 60 * 60 * 1000] }, // dueDate + 7 days

@@ -24,8 +24,8 @@ const groupTaskMemberSchema = new Schema({
     },
     completionStatus: { 
       type: String, 
-      enum: ["not_started", "in_progress", "completed"], 
-      default: "not_started" 
+      enum: ["in_progress", "completed"],
+      default: "in_progress"
     },
     completedAt: { type: Date },
     rank: { type: Number }, // completion order

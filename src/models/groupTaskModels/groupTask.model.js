@@ -30,7 +30,7 @@ const groupTaskSchema = new Schema({
     },
     status: { 
       type: String, 
-      enum: ["ongoing", "completed", "overdue"], 
+      enum: ["ongoing", "completed"], 
       default: "ongoing"
     },
     winners: [

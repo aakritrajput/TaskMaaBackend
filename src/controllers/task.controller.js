@@ -1,24 +1,16 @@
-// add task
-// get whole task details -- single task
-// get users task -- with basic info..
-// get group tasks
-// get task by its status -- saw what statuses 
-// create a group task
-// create a chat from that group task
-// add other members to group task
-// request to be the part of that public gorup task
-
-//import { delete_task_in_cache, task_from_cache, task_to_cache } from "../cache/task.cache.js";
-import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/user.cache.js";
+import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/task.cache.js";
 import { Task } from "../models/task.model";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 const addTask = async(req, res) => {
     try {
-        const {title} = req.body  // only hardcoding the required field which will not be having any default value 
+        const {title, dueDate} = req.body  // only hardcoding the required field which will not be having any default value 
         if (title.trim().length == 0){
             throw new ApiError(400, "Please Provide a valid title !!")
+        }
+        if (!dueDate) {
+            throw new ApiError(400, "Please provide valid due date !!")
         }
         const user = req.user
         if(!user){
@@ -27,7 +19,8 @@ const addTask = async(req, res) => {
 
         const taskData = {
             user: user._id,
-            title
+            title,
+            dueDate, // this should be in proper date type !!
         }
         for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are checking for not required fields as we will be having some sought of default values for them in our model !!
             const value = req.body[field];  

@@ -29,7 +29,8 @@ const taskSchema = new Schema({
         default: "general" 
     },
     dueDate: { 
-        type: Date
+        type: Date,
+        required: true
     },
 }, { timestamps: true });
 

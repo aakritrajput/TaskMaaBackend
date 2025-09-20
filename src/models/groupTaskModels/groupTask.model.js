@@ -20,7 +20,8 @@ const groupTaskSchema = new Schema({
       required: true 
     },
     dueDate: { 
-      type: Date 
+      type: Date,
+      required: true,
     },
     importance: { 
       type: String, 
@@ -30,7 +31,7 @@ const groupTaskSchema = new Schema({
     status: { 
       type: String, 
       enum: ["ongoing", "completed", "overdue"], 
-      default: "ongoing" 
+      default: "ongoing"
     },
     winners: [
       { 

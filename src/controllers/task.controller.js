@@ -207,10 +207,10 @@ const getGeneralTasks = async(req, res) => {
             await cache_general_tasks(userId, tasks_from_db)
         }
         
-        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))
+        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your general tasks"))
         
     } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting today's tasks !!"});
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting your general tasks !!"});
     }
 }
 

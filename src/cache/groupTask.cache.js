@@ -23,7 +23,7 @@ const groupTasks_to_cache = async(userId, data, ttl=7200) => {
     }
 }
 
-const invalidate_groupTask = async(userId) => {
+const invalidate_groupTask_cache = async(userId) => {
     try {
         const key = `${USER_PREFIX}${userId}:groupTasks`;
         const response = await redis.del(key)
@@ -36,5 +36,5 @@ const invalidate_groupTask = async(userId) => {
 export {
     groupTasks_from_cache,
     groupTasks_to_cache,
-    invalidate_groupTask,
+    invalidate_groupTask_cache,
 }

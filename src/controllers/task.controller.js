@@ -11,7 +11,6 @@
 //import { delete_task_in_cache, task_from_cache, task_to_cache } from "../cache/task.cache.js";
 import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/user.cache.js";
 import { Task } from "../models/task.model";
-import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -244,7 +243,7 @@ const editTask = async(req, res) => {
             taskData[field] = value;
         }
 
-        const returnedTask = await Task.findByIdAndUpdate(productId, taskData)
+        const returnedTask = await Task.findByIdAndUpdate(productId, taskData, { new: true })
 
         if(returnedTask.type == 'daily'){
             await invalidate_todays_tasks(user._id)
@@ -255,4 +254,47 @@ const editTask = async(req, res) => {
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
     }
+}
+
+const toggleStatus = async(req, res) => { // instead of this we can also use the above update one but we will specifically also need this toggle option !!
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, "Unauthorized request !!")
+        }
+        const taskId = req.params
+        if(!taskId){
+            throw new ApiError(400, "Task id not provided !!")
+        }
+        
+        const {status} = req.body
+        const allowedStatus = ["pending", "in-progress", "completed"];
+        if (!allowedStatus.includes(status)){
+            throw new ApiError(400, "Please provide valid status option !!")
+        }
+
+        const updatedTask = await Task.findByIdAndUpdate(taskId, {
+            status: status
+        },{ new: true })
+
+        if(updatedTask.type == 'daily'){
+            await invalidate_todays_tasks(userId)
+        }else{
+            await invalidate_general_tasks(userId)
+        }
+        res.status(201).json(new ApiResponse(201, updatedTask, "Successfully Toggled the status of your task !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error toggling your task !!'})
+    }
+}
+
+export {
+    addTask,
+    getTask,
+    getAllTasks,
+    deleteTask,
+    getTodaysTasks,
+    getGeneralTasks,
+    editTask,
+    toggleStatus
 }

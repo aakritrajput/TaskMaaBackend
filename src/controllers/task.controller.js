@@ -216,7 +216,10 @@ const getGeneralTasks = async(req, res) => {
 
 const editTask = async(req, res) => {
     try {
-        const productId = req.params
+        const taskId = req.params
+        if(!taskId){
+            throw new ApiError(400, "Task id not provided !!")
+        }
         const {title} = req.body  // in update all the data should be sent from frontend .. here we are only checking for title but in an update all the data should be passed (but still thier might not be some data in that fild that's why only checking title)
         if (title.trim().length == 0){
             throw new ApiError(400, "title missing !!")
@@ -236,7 +239,7 @@ const editTask = async(req, res) => {
             taskData[field] = value;
         }
 
-        const returnedTask = await Task.findByIdAndUpdate(productId, taskData, { new: true })
+        const returnedTask = await Task.findByIdAndUpdate(taskId, taskData, { new: true })
 
         if(returnedTask.type == 'daily'){
             await invalidate_todays_tasks(user._id)

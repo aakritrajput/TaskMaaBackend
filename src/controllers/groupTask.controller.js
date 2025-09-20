@@ -93,9 +93,59 @@ const deleteGroupTask = async(req, res) => {
     }
 }
 
+const editGroupTask = async(req, res) => {
+     try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, "Unauthorized request !!") 
+        }
+
+        const groupTaskId = req.params
+        if(!groupTaskId){
+            throw new ApiError(400, "Task id not provided !!")
+        }
+
+        const groupTask = await GroupTask.findById(groupTaskId)
+
+        if (groupTask.creatorId !== userId){
+            throw new ApiError(401, "You are not authorized to update this task !!")
+        }
+
+        const {title, dueDate} = req.body
+        if (title.trim().length == 0){
+            throw new ApiError(400, "Please Provide a valid title !!")
+        }
+        if (!dueDate) {
+            throw new ApiError(400, "Please provide valid due date !!")
+        }
+
+        // Updating basic fields
+        groupTask.creatorId = userId;
+        groupTask.title = title;
+        groupTask.dueDate = new Date(dueDate); // Ensure proper Date type
+        
+        // Dynamically updating optional fields
+        for (const field of ['description', 'importance', 'status', 'type']) {
+          const value = req.body[field];
+          if (!value) continue; // Skip falsy values
+          groupTask[field] = value;
+        }
+        
+        // Save the updated document
+        await groupTask.save();
+
+        await invalidate_groupTask_cache(userId);
+
+        res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Updated your GroupTask !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
+    }
+}
+
+
 export {
     creatGroupTask,
     getMyGroupTask,
     deleteGroupTask,
-    
+
 }

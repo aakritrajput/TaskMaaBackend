@@ -242,6 +242,26 @@ const sendInviteToConnectionForGroupTask = async(req, res) => {
     }
 }
 
+const actionToInviteForGroupTask = async(req, res) => {
+    try {
+        const {groupTaskId} = req.params
+        if(!groupTaskId) throw new ApiError(400, "No groupTask Id provided !!");
+        const userId = req.user._id 
+        if(!userId) throw new ApiError(401, "Unauthorized request !!");
+        const {status} = req.body
+        if(!status) throw new ApiError(400, "Please provide your action for the invitation -- 'accept' or 'declined' ")
+        const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
+        if (!groupMember) throw new ApiError(404, "No group task found with given id or either you are not part of the groupTask !!");
+
+        groupMember.status = status
+        await groupMember.save()
+
+        res.status(200).json(new ApiResponse(200, {}, `Successfully ${status} !!`))        
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
+    }
+}
+
 export {
     creatGroupTask,
     getMyGroupTask,

@@ -14,7 +14,7 @@ const groupTaskMemberSchema = new Schema({
     },
     status: { 
       type: String, 
-      enum: ["invited", "accepted", "declined"], 
+      enum: ["invited", "accepted", "declined"],
       default: "invited" 
     },
     role: { 

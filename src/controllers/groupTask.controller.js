@@ -4,6 +4,8 @@ import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+// Note: This should be ensured on frontend that if the groupTaskMember's status is 'accepted' then only he is supposed to make requests to toggle status completion and other description also !!!
+
 const creatGroupTask = async(req, res) => {
      try {
         const {title, dueDate} = req.body
@@ -188,11 +190,33 @@ const markCompleted = async(req, res) => {
     }
 }
 
+const participateInPublicGroupTask = async(req, res) => {
+    try {
+        const userId = req.user._id
+        const { groupTaskId } = req.params
+        const groupTask = await GroupTask.findById(groupTaskId)
+        if(!groupTask) throw new ApiError(404, "No such task is there !!");
+        if(groupTask.type == 'private') throw new ApiError(401, "Not permitted to participate in this group task -- It is private !!");
+
+        const groupMember = await GroupTaskMember.create({
+            groupTaskId,
+            userId,
+            status: 'accepted',
+            role: 'participant',
+            completionStatus: 'in_progress',
+        })
+
+        res.status(200).json(200, groupMember, "Successfully entered in the group task !!")
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
+    }
+}
+
 export {
     creatGroupTask,
     getMyGroupTask,
     deleteGroupTask,
     editGroupTask,
     markCompleted,
-    
+    participateInPublicGroupTask,
 }

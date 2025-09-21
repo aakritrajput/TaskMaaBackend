@@ -23,6 +23,7 @@ const creatGroupTask = async(req, res) => {
             creatorId: userId,
             title,
             dueDate, // keep in mind that this should be in proper Date type !!
+            winners: [], // we will here define that default array and in future we will push the winners into it 
         }
 
         for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are not adding check for winners as when we are creating then we would not be having winners on just task creation !!
@@ -90,7 +91,7 @@ const deleteGroupTask = async(req, res) => {
         if (!userId){
             throw new ApiError(401, 'Unauthorized request !!')
         }
-        const groupTaskId = req.params
+        const {groupTaskId} = req.params
         if (!groupTaskId){
             throw new ApiError(400, 'Group task Id not provided -- which is required !!')
         }
@@ -103,7 +104,7 @@ const deleteGroupTask = async(req, res) => {
         }
 
         const deletedGroupTask = await GroupTask.findByIdAndDelete(groupTaskId)
-
+        await GroupTaskMember.findOneAndDelete({groupTaskId})
         await invalidate_groupTask_cache(groupTaskId)
         res.status(200).json(new ApiResponse(200, {}, 'GroupTask Successfully deleted !!'))
     } catch (error) {
@@ -118,7 +119,7 @@ const editGroupTask = async(req, res) => {
             throw new ApiError(401, "Unauthorized request !!") 
         }
 
-        const groupTaskId = req.params
+        const {groupTaskId} = req.params
         if(!groupTaskId){
             throw new ApiError(400, "Task id not provided !!")
         }
@@ -160,10 +161,38 @@ const editGroupTask = async(req, res) => {
     }
 }
 
+const markCompleted = async(req, res) => {
+    try {
+        const userId = req.user._id
+        const {groupTaskId} = req.params
+        if (!userId) throw new ApiError(401, "Unauthorized Request !!");
+        if (!groupTaskId) throw new ApiError(401, "Please provide a groupTask ID!!");
+
+        const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
+        if (!groupMember) throw new ApiError(401, "You are not authorized to do this !!");
+
+        const groupTask = await GroupTask.findById(groupTaskId)
+
+        groupTask.winners.push(userId)
+        const rank = groupTask.winners.length || 1 ;
+
+
+        groupMember.completionStatus = 'completed';
+        groupMember.rank = rank ;
+        groupMember.completedAt = new Date()
+
+        await groupMember.save()
+        res.status(200).json(new ApiResponse(200, groupMember, "Successfully marked Completed !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error toggling your completion for this groupTask !!'})
+    }
+}
 
 export {
     creatGroupTask,
     getMyGroupTask,
     deleteGroupTask,
     editGroupTask,
+    markCompleted,
+    
 }

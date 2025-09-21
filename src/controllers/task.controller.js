@@ -125,7 +125,7 @@ const deleteTask = async(req, res) => {
         if (!userId){
             throw new ApiError(401, 'Unauthorized request !!')
         }
-        const taskId = req.params
+        const {taskId} = req.params
         if (!taskId){
             throw new ApiError(400, 'Task Id not provided -- which is required !!')
         }
@@ -217,7 +217,7 @@ const getGeneralTasks = async(req, res) => {
 
 const editTask = async(req, res) => {
     try {
-        const taskId = req.params
+        const {taskId} = req.params
         if(!taskId){
             throw new ApiError(400, "Task id not provided !!")
         }
@@ -259,7 +259,7 @@ const toggleStatus = async(req, res) => { // instead of this we can also use the
         if(!userId){
             throw new ApiError(401, "Unauthorized request !!")
         }
-        const taskId = req.params
+        const {taskId} = req.params
         if(!taskId){
             throw new ApiError(400, "Task id not provided !!")
         }

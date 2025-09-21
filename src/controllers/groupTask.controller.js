@@ -172,7 +172,9 @@ const markCompleted = async(req, res) => {
 
         const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
         if (!groupMember) throw new ApiError(401, "You are not authorized to do this !!");
-
+        if(groupMember.status != 'accepted'){
+            throw new ApiError(400, "You have not accepted the group invitation -- so cannot make any completions !!")
+        }
         const groupTask = await GroupTask.findById(groupTaskId)
 
         groupTask.winners.push(userId)
@@ -209,6 +211,34 @@ const participateInPublicGroupTask = async(req, res) => {
         res.status(200).json(200, groupMember, "Successfully entered in the group task !!")
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
+    }
+}
+
+const sendInviteToConnectionForGroupTask = async(req, res) => {
+    try {
+        // here in future we will be implementing the notification sending part !!
+        const {groupTaskId} = req.params
+        const {friendId} = req.body
+        const userId = req.user._id
+        if(!groupTaskId) throw new ApiError(400, "Group taskId not provided !!");
+        if(!friendId) throw new ApiError(400, "No Friend Id provided !!");
+
+        const groupTask = await GroupTask.findById(groupTaskId);
+
+        if(!groupTask) throw new ApiError(404, "No such task exist !!");
+        if(groupTask.creatorId !== userId) throw new ApiError(400, "You are not authorized to send invitation for this group Task");
+
+        await GroupTaskMember.create({
+            groupTaskId,
+            userId,
+            status: 'invited',
+            role: 'participant',
+            completionStatus: 'in_progress',
+        })
+
+        res.status(200).json(200, groupMember, "Invitation for the group task successfully sent !!")
+    } catch (error) {
+       res.status(error.statusCode || 500).json({message: error.message || 'Error sending invite to your friend for this group task !!'}) 
     }
 }
 

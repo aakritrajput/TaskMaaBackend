@@ -94,6 +94,13 @@ const deleteGroupTask = async(req, res) => {
         if (!groupTaskId){
             throw new ApiError(400, 'Group task Id not provided -- which is required !!')
         }
+        const groupMember = await GroupTaskMember.find({
+            groupTaskId: groupTaskId,
+            userId,
+        })
+        if(groupMember.length == 0 || groupMember.role == 'participant'){
+            throw new ApiError(401, "You are not authorized to delete this task !!")
+        }
 
         const deletedGroupTask = await GroupTask.findByIdAndDelete(groupTaskId)
 

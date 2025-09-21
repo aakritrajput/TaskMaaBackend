@@ -249,4 +249,5 @@ export {
     editGroupTask,
     markCompleted,
     participateInPublicGroupTask,
+    sendInviteToConnectionForGroupTask
 }

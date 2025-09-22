@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -96,27 +97,109 @@ const sendFriendRequest = async(req, res) => {
             throw new ApiError(400, "Please provide the user ID of the person you want to send the request to..")
         }
 
-        const response = await User.bulkWrite([
-            {
-                updateOne: {
-                    filter: {_id: userId},
-                    update: { $addToSet: { requests: { userId: friendId, sentOrRecieved: 'recieved' } } } // -- here i am using addToSet in place of $push as it will not push if duplicate !! // recieved here for current users document 
+        const session = await mongoose.startSession()
+        try {
+            session.startTransaction()
+            await User.bulkWrite([
+                {
+                    updateOne: {
+                        filter: {_id: userId},
+                        update: { $addToSet: { requests: { userId: friendId, sentOrRecieved: 'sent' } } } // -- here i am using addToSet in place of $push as it will not push if duplicate !! // sent here for friend's document who sent the friend request !!
+                    }
+                },
+                {
+                    updateOne: {
+                        filter: { _id: friendId},
+                        update: { $addToSet: {requests: {userId, sentOrRecieved: 'recieved'}}}, // recieved here for current users document 
+                    }
                 }
-            },
-            {
-                updateOne: {
-                    filter: { _id: friendId},
-                    update: { $addToSet: {requests: {userId, sentOrRecieved: 'sent'}}}, // sent here for friend's document who sent the friend request !!
-                }
-            }
-        ])
-
-        //TODO: here we can implement the notification in future 
-
-        res.status(200).json(new ApiResponse(200, {}, "Friend Request sent successfully !!"))
+            ], {session})
+    
+            await session.commitTransaction()
+            //TODO: here we can implement the notification in future 
+            res.status(200).json(new ApiResponse(200, {},"Friend Request sent successfully !!"))
+        } catch (error) {
+            await session.abortTransaction()
+            res.status(500).json({message: error.message || "Error sending friend request to the given user !!"})
+        }finally{
+            session.endSession()
+        }
 
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error sending friend request to the given user !!"})
+    }
+}
+
+const responseToFriendRequest = async(req, res) => {
+    try {
+        const userId = req.user._id
+        const { friendId } = req.params
+        const {response} = req.body // 'accepted' or 'rejected'
+        if (!friendId){
+            throw new ApiError(400, "Please provide the user ID of the person whose request you are handling !!")
+        }
+        if (!response || !['accepted', 'rejected'].includes(response)) {
+            throw new ApiError(400, "No response provided -- either accepted to rejected ?")
+        }
+
+        const session = await mongoose.startSession()
+        try {
+            session.startTransaction()
+            const result = response == 'accepted' ? await User.bulkWrite([
+                {
+                    updateOne: {
+                        filter: {_id: userId},
+                        update: { 
+                            $addToSet: { friends: friendId },
+                            $pull: {requests: {userId: friendId, sentOrRecieved: 'recieved'}},
+                        },
+                    }
+                },
+                {
+                    updateOne: {
+                        filter: { _id: friendId},
+                        update: { 
+                            $addToSet: {friends: userId},
+                            $pull: {requests: {userId: userId, sentOrRecieved: 'sent'}}
+                        }, 
+                    }
+                }
+            ], {session})
+    
+            :
+        
+            await User.bulkWrite([
+                {
+                    updateOne: {
+                        filter: {_id: userId},
+                        update: {
+                            $pull: {requests: {userId: friendId}},
+                        },
+                    }
+                },
+                {
+                    updateOne: {
+                        filter: { _id: friendId},
+                        update: { 
+                            $pull: {requests: {userId: userId}}
+                        }, 
+                    }
+                }
+            ], {session})
+    
+            //TODO: here we can implement the notification in future 
+
+            await session.commitTransaction()
+    
+            res.status(200).json(new ApiResponse(200, {}, "Friend Request sent successfully !!"))
+       } catch (error) {
+            await session.abortTransaction()
+            res.status(500).json({message: error.message || "Error responding to friend request of the given user !!"})
+        }finally{
+            session.endSession()
+        }
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "Error responding to friend request of the given user !!"})
     }
 }
 
@@ -124,5 +207,6 @@ export {
     register, 
     login,
     authCheck,
-    sendFriendRequest
+    sendFriendRequest,
+    responseToFriendRequest
 }

@@ -87,10 +87,42 @@ const authCheck = (req, res) =>{
     }
 }
 
+const sendFriendRequest = async(req, res) => {
+    try {
+        const userId = req.user._id // user who wants to send the request !!
+        const { friendId } = req.params // user to whome we want to send the friend request !!
 
+        if (!friendId){
+            throw new ApiError(400, "Please provide the user ID of the person you want to send the request to..")
+        }
+
+        const response = await User.bulkWrite([
+            {
+                updateOne: {
+                    filter: {_id: userId},
+                    update: { $addToSet: { requests: { userId: friendId, sentOrRecieved: 'recieved' } } } // -- here i am using addToSet in place of $push as it will not push if duplicate !! // recieved here for current users document 
+                }
+            },
+            {
+                updateOne: {
+                    filter: { _id: friendId},
+                    update: { $addToSet: {requests: {userId, sentOrRecieved: 'sent'}}}, // sent here for friend's document who sent the friend request !!
+                }
+            }
+        ])
+
+        //TODO: here we can implement the notification in future 
+
+        res.status(200).json(new ApiResponse(200, {}, "Friend Request sent successfully !!"))
+
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "Error sending friend request to the given user !!"})
+    }
+}
 
 export {
     register, 
     login,
-    authCheck
+    authCheck,
+    sendFriendRequest
 }

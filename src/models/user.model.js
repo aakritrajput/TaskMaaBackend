@@ -33,6 +33,31 @@ const userSchema = new Schema(
       type: Boolean,
       default: false
     },
+    friends: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: 'User'
+        },
+      ],
+      default: [],
+    },
+    requests: {
+      type: [
+         {
+           userId: {
+             type: Schema.Types.ObjectId,
+             ref: 'User'
+           },
+           sentOrRecieved: {
+             type: String,
+             enum: ['sent', 'recieved'],
+             required: true,
+           }
+         }
+       ],
+       default: [],
+    },
     // Things required in chat feature
     unreadMessages: {  //  total unread across all chats
       type: Number, 

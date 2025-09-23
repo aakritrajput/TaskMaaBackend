@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 
 const register = async(req, res) => {
     try {
@@ -203,10 +204,37 @@ const responseToFriendRequest = async(req, res) => {
     }
 }
 
+const searchByUsername = async(req, res) => {
+    try {
+        const {username} = req.query
+        if(!username){
+            throw new ApiError(400, "Please provide a username to search !!")
+        }
+        
+        const usertFromCache = await userPlateFromCache(username)
+        if(resultFromCache){
+            res.status(200).json(new ApiResponse(200, resultFromCache, "Successfully Searched !!"))
+        }
+
+        const userFromDatabase = await User.findOne({username: username}).select("username name profilePicture").lean()
+
+        if(!userFromDatabase){
+            throw new ApiError(404, "User not found with this username !!")
+        }
+
+        await userPlateToCache(username, userFromDatabase)
+
+        res.status(200).json(new ApiResponse(200, userFromDatabase, "Here is the user with given username !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error searching the user with the given username !!" })
+    }
+}
+
 export {
     register, 
     login,
     authCheck,
     sendFriendRequest,
-    responseToFriendRequest
+    responseToFriendRequest,
+    searchByUsername
 }

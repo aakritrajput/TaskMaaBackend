@@ -33,6 +33,17 @@ const invalidatePerformanceCache = async(userId) => {
     }
 }
 
+const leaderBoardToCache = async(data, ttl=43200) => { // for 12 hours --> as this is something common for all and can update it twice a day !
+    try {
+        const key = `leaderBoard`
+         const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
+        return response ;
+    } catch (error) {
+        console.error("Redis Cache Save Error:", error.message);
+        return null;
+    }
+} 
+
 export {
     performanceFromCache,
     performanceToCache,

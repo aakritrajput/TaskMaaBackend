@@ -8,17 +8,25 @@ const statsSchema = new Schema(
       required: true,
       unique: true, // one stats document per user
     },
-    tasksCompleted: {
+    dailytasksCompleted: {
       type: Number,
       default: 0,
     },
-    tasksPending: {
+    generaltasksCompleted: {
+      type: Number,
+      default: 0,
+    },
+    totaldailyTasks: {
+      type: Number,
+      default: 0,
+    },
+    totalgeneralTasks: {
       type: Number,
       default: 0,
     },
     streak: {
       type: Number,
-      default: 0,
+      default: 1,
     },
     overallScore: {
       type: Number,

@@ -44,7 +44,7 @@ const leaderBoardToCache = async(data, ttl=43200) => { // for 12 hours --> as th
     }
 } 
 
-const leaderBoardFromCache = async(userId) => {
+const leaderBoardFromCache = async() => {
     try {
         const key = `leaderBoard`
         const data = await redis.get(key)

@@ -15,7 +15,7 @@ const userPlateFromCache = async(username) => { // here i am referencing userPla
 const userPlateToCache = async(username, data, ttl=300) => { // for 5 minutes 
     try {
         const key = `user:userPlate:${username}`
-        const response = await redis.set(key, data, 'EX', ttl)
+        const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
         return response; // 'OK'
     } catch (error) {
         console.log(error)

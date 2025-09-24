@@ -7,7 +7,8 @@ const getMyPerformance = async(req, res) => {
         if(!userId){
             throw new ApiError(400, "Unauthorised request !!")
         }
-        
+
+        const performanceFromCache = '' ;
     } catch (error) {
         res.status(error.status || 500).json({message: error.message || 'There was some error getting your performance' })
     }

@@ -21,4 +21,4 @@ const aiMessageSchema = new Schema({
     },
 }, { timestamps: true });
 
-export const AiMessage = mongoose.model("AIMessage", aiMessageSchema);
+export const AiMessage = mongoose.model("AiMessage", aiMessageSchema);

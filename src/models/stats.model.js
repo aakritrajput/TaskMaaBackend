@@ -36,4 +36,6 @@ const statsSchema = new Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Stats", statsSchema);
+statsSchema.index({userId: 1})
+
+export const Stats = mongoose.model("Stats", statsSchema);

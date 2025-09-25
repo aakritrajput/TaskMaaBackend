@@ -23,9 +23,9 @@ const userPlateToCache = async(username, data, ttl=300) => { // for 5 minutes
     }
 }
 
-const profileFromCache = async(username) => {
+const profileFromCache = async(userId) => {
     try {
-        const key = `user:profile:${username}`
+        const key = `user:profile:${userId}`
         const data = await redis.get(key)
         return data ? JSON.parse(data) : null ;
     } catch (error) {
@@ -34,9 +34,9 @@ const profileFromCache = async(username) => {
     }
 }
 
-const profileToCache = async(username, data, ttl=300) => { // for 5 minutes 
+const profileToCache = async(userId, data, ttl=300) => { // for 5 minutes 
     try {
-        const key = `user:profile:${username}`
+        const key = `user:profile:${userId}`
         const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
         return response; // 'OK'
     } catch (error) {

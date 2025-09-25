@@ -55,5 +55,5 @@ const getLeaderBoard = async(req, res) => {
 
 export {
     getMyPerformance,
-    getLeaderBoard,
+    getLeaderBoard
 }

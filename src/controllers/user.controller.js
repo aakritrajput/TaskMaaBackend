@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
+import { profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
+import { Stats } from "../models/stats.model.js";
 
 const register = async(req, res) => {
     try {
@@ -211,9 +212,10 @@ const searchByUsername = async(req, res) => {
             throw new ApiError(400, "Please provide a username to search !!")
         }
         
-        const usertFromCache = await userPlateFromCache(username)
-        if(resultFromCache){
-            res.status(200).json(new ApiResponse(200, resultFromCache, "Successfully Searched !!"))
+        const userFromCache = await userPlateFromCache(username)
+        if(userFromCache){
+            res.status(200).json(new ApiResponse(200, userFromCache, "Successfully Searched !!"))
+            return ;
         }
 
         const userFromDatabase = await User.findOne({username: username}).select("username name profilePicture").lean()
@@ -230,11 +232,42 @@ const searchByUsername = async(req, res) => {
     }
 }
 
+const getUserProfile = async(req, res) => {
+    try {
+        const userId = req.params
+        if(!userId){
+            throw new ApiError(400, "No userId provided !!")
+        }
+
+        const dataFromCache = await profileFromCache(userId) ;
+        if(dataFromCache){
+            res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
+            return ;
+        }
+        const dataFromDb = await Stats.findOne({userId}).select('userId profileType overallScore badges').populate('userId', 'username name profilePicture about').lean()
+        if(!dataFromDb){
+            throw new ApiError(400, "No user exist with the given userId. Please provide a valid userId")
+        }
+
+        if(dataFromDb.profileType == 'private'){
+            delete dataFromDb.badges;
+            delete dataFromDb.overallScore;
+            delete dataFromDb.userId.about;
+        }
+
+        await profileToCache(userId, dataFromDb);
+        res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
+    }
+}
+
 export {
     register, 
     login,
     authCheck,
     sendFriendRequest,
     responseToFriendRequest,
-    searchByUsername
+    searchByUsername,
+    getUserProfile,
 }

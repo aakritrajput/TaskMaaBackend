@@ -34,6 +34,10 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+    about: {
+      type: String,
+      default: '',
+    },
     isVerified: {
       type: Boolean,
       default: false

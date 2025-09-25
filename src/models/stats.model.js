@@ -37,6 +37,10 @@ const statsSchema = new Schema(
       type: Number,
       default: 0,
     },
+    badges: {
+      type: [Number],
+      default: [],
+    }
   },
   { timestamps: true }
 );

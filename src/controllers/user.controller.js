@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 import { Stats } from "../models/stats.model.js";
+import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
 const register = async(req, res) => {
     try {
@@ -259,6 +260,65 @@ const getUserProfile = async(req, res) => {
         res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
+    }
+}
+
+const editProfile = async(req, res) => { // we have not created any caching function for profile as our access token already contains the profile info and the rest we are calling through seperate api's
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, "Unauthorized Request !!")
+        }
+
+        const data = req.body
+        const profilePicUrl = req.file.path ; // now these are the 4 things that use can edit and hence atleast one of them should be not null 
+
+        if(!data.name && !data.profileType && !data.about && !data.profilePicUrl){
+            throw new ApiError(400, "Please provide something to edit - Nothing provided !!")
+        }
+        let newProfilePicUrl = '';
+        if(profilePicUrl){
+            if(req.user.profilePicture){
+                await deleteFromCloudinary(req.user.profilePicture)
+            }
+            newProfilePicUrl = await uploadOnCloudinary(profilePicUrl)
+        }
+        let dataToUpdate = {}
+        if(newProfilePicUrl){
+            dataToUpdate.profilePicture = newProfilePicUrl;
+        }
+        for (const field of ['name', 'profileType', 'about']){
+            if(data[field]){
+                dataToUpdate[field] = data[field]
+            }
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(userId, dataToUpdate, {new: true}).select('-unreadMessages -hashedPassword -isVerified -friends -requests -unreadMessages -lastOnline')
+        // can also exclude timestamps 
+
+        const accessToken = updatedUser.generateAccessToken()
+        if(!accessToken){
+            throw new ApiError(500, "Error generating access token !!")
+        }
+
+        const refreshToken = updatedUser.generateRefreshToken()
+        if(!refreshToken){
+            throw new ApiError(500, "Error generatig refresh token !!")
+        }
+
+        const options = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+        }
+
+        res
+        .status(200)
+        .cookie('accessToken', accessToken, options)
+        .cookie('refreshToken', refreshToken, options)
+        .json(new ApiResponse(200, updatedUser, "Successfully logged in !!"))
+    } catch (error) {
+         res.status(error.statusCode || 500).json({message: error.message || "There was some error deleting your account" })
     }
 }
 

@@ -43,7 +43,7 @@ const deleteFromCloudinary = async (url) => {
         if (result.result !== "ok") {
           throw new ApiError(500, `Failed to delete image. Cloudinary response: ${result.result}`);
         }
-
+        return 'OK'
     } catch (error) {
         throw new ApiError(error.statusCode || 500, error.message || "unable to delete video from cloudinary")
     }

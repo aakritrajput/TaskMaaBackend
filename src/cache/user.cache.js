@@ -34,8 +34,20 @@ const profileFromCache = async(username) => {
     }
 }
 
+const profileToCache = async(username, data, ttl=300) => { // for 5 minutes 
+    try {
+        const key = `user:profile:${username}`
+        const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
+        return response; // 'OK'
+    } catch (error) {
+        console.log(error)
+        return null;
+    }
+}
+
 export {
     userPlateFromCache,
     userPlateToCache,
-    profileFromCache
+    profileFromCache,
+    profileToCache
 }

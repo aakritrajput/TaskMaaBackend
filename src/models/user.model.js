@@ -25,6 +25,11 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
+    profileType:{
+      type: String,
+      enum: ['public', 'private'],
+      default: 'private'
+    },
     profilePicture: {
       type: String,
       default: "",

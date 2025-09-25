@@ -41,7 +41,7 @@ const getLeaderBoard = async(req, res) => {
             return ;
         }
 
-        const dataFromDb = await Stats.find().sort({overallScore: -1}).limit(20).select('userId overallScore').populate("userId", "username profilePicture").lean()
+        const dataFromDb = await Stats.find({profileType: 'public'}).sort({overallScore: -1}).limit(20).select('userId overallScore').populate("userId", "username profilePicture").lean()
 
         if (dataFromDb.length != 0){
             await leaderBoardToCache(dataFromDb)
@@ -55,5 +55,5 @@ const getLeaderBoard = async(req, res) => {
 
 export {
     getMyPerformance,
-
+    getLeaderBoard,
 }

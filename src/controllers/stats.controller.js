@@ -31,9 +31,6 @@ const getMyPerformance = async(req, res) => {
 }
 
 const getLeaderBoard = async(req, res) => {
-    // we will only implement this for public users
-    // on the data for leaderboard profiles we will send the username, profilepic, overallScore
-    // we will pick the top 20 only
     try {
         const dataFromCache = await leaderBoardFromCache();
         if (dataFromCache){

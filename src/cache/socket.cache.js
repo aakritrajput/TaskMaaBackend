@@ -22,3 +22,20 @@ const invalidateSocketIdForUser = async(userId) => {
         return null;
     }
 }
+
+const getSocketIdOfUser = async(userId) => { // we will need this when sending message for particular user !!
+    try {
+        const key = `user:${userId}:socket`
+        const data = await redis.get(key)
+        return data ? JSON.parse(data) : null;
+    } catch (error) {
+        console.error('Error getting user socket id from cache: ', error)
+        return null;
+    }
+}
+
+export {
+    socketIdForUser,
+    invalidateSocketIdForUser,
+    getSocketIdOfUser
+}

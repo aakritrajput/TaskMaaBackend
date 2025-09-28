@@ -19,6 +19,7 @@ const groupTasks_to_cache = async(userId, data, ttl=7200) => {
         const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
         return response ;
     } catch (error) {
+        console.error(error)
         return null;
     }
 }

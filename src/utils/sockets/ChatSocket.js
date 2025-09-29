@@ -22,7 +22,7 @@ export default function chatSocket(server){
 
             // ----------- One to One chats ---------------
 
-            socket.on('send-message', async({senderId, recieverId, message})=> {
+            socket.on('send-message', async({chatId, senderId, recieverId, message})=> { // here we are also collecting the chat id so that if there is new chat then if chat id is not provided we can create a new chat in db
                 let receiverSocketId = onlineUsers.get(recieverId)
                 if(!receiverSocketId){
                     receiverSocketId = await getSocketIdOfUser(recieverId);
@@ -31,11 +31,11 @@ export default function chatSocket(server){
                 const timestamp = Date.now();
 
                 if (receiverSocketId) {
-                    socket.to(receiverSocketId).emit('recieve-message', { senderId, recieverId, message, timestamp });
-                    await messageToCacheQueue({senderId, recieverId, message, timestamp})
+                    socket.to(receiverSocketId).emit('recieve-message', {chatId, senderId, recieverId, message, timestamp });
+                    await messageToCacheQueue({chatId, senderId, recieverId, message, timestamp})
                 } else {
                     console.log(`User ${recieverId} is offline. Storing message for later delivery.`);
-                    await storeOfflineMessage(recieverId, { senderId, message, timestamp });
+                    await storeOfflineMessage({chatId, senderId, recieverId, message, timestamp});
                 }
             })
 

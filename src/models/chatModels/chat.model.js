@@ -10,9 +10,16 @@ const chatSchema = new Schema({
     // users in the chat
     users: [
         {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
+            user: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+                required: true,
+            },
+            role: {
+                type: String,
+                enum: ['participant' , 'admin'],
+                default: 'participant',
+            }
         }
     ],
 
@@ -24,13 +31,9 @@ const chatSchema = new Schema({
 
     // Only for group chats
     groupName: {
-        type: String, 
+        type: String,
         trim: true,
     },
-    groupAdmin: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-    }
 }, {timestamps: true})
 
 export const Chat = mongoose.Model("Chat", chatSchema)

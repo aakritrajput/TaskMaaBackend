@@ -34,8 +34,19 @@ const getSocketIdOfUser = async(userId) => { // we will need this when sending m
     }
 }
 
+const messageToCacheQueue = async(message) => {
+    try {
+        
+    } catch (error) {
+        console.error('Error from messageToCacheQueue: ', error)
+        return null;
+    }
+}
+
 export {
     socketIdForUser,
     invalidateSocketIdForUser,
-    getSocketIdOfUser
+    getSocketIdOfUser,
+    messageToCacheQueue,
+    storeOfflineMessage,
 }

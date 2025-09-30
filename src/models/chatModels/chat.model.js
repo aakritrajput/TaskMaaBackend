@@ -25,8 +25,9 @@ const chatSchema = new Schema({
 
     // Last message in the chat
     lastMessage: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Message",
+        text: String,
+        senderId: String,
+        timestamp: String,
     },
 
     // Only for group chats

@@ -2,12 +2,20 @@ import mongoose from "mongoose";
 import { Schema } from "mongoose";
 
 const messageSchema = new Schema({
-    sender: {
+    id: {
+        type: String,
+        required: true,
+    },
+    senderId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
-    }, 
-    chat: {
+    },
+    receiverId: { // for one to one chat 
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+    },
+    chatId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Chat",
         required: true,
@@ -18,10 +26,24 @@ const messageSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ['sent', 'queued', 'delievered', 'seen'],
-        default: 'sent,'
+        enum: ['sent', 'delievered', 'seen'],
+        default: 'sent'
     },
+    timestamp: {
+        type: Date,
+        default: Date.now(),
+    },
+
     // only for group chats
+    deliveredTo: {
+        type: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            }
+        ], 
+        default: [],
+    },
     seenBy: {
         type: [
             {
@@ -31,6 +53,6 @@ const messageSchema = new Schema({
         ], 
         default: [],
     }
-}, {timestamps: true})
+})
 
 export const Message = mongoose.model("Message", messageSchema)

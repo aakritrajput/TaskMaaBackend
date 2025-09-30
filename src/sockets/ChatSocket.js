@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
-import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage } from "../../cache/socket.cache";
+import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount } from "../cache/socket.cache";
+import { v4 as uuidv4 } from 'uuid';
 
 export default function chatSocket(server){
     const io = new Server(server, {
@@ -22,22 +23,45 @@ export default function chatSocket(server){
 
             // ----------- One to One chats ---------------
 
-            socket.on('send-message', async({chatId, senderId, recieverId, message})=> { // here we are also collecting the chat id so that if there is new chat then if chat id is not provided we can create a new chat in db
+            socket.on('send-message', async({chatId, senderId, recieverId, text})=> { // here we are also collecting the chat id so that if there is new chat then if chat id is not provided we can create a new chat in db
                 let receiverSocketId = onlineUsers.get(recieverId)
                 if(!receiverSocketId){
                     receiverSocketId = await getSocketIdOfUser(recieverId);
                 }
 
-                const timestamp = Date.now();
+                const message = {
+                    id: uuidv4(),   // generating unique messageId for future reference !!
+                    chatId,
+                    senderId,
+                    recieverId,
+                    text,
+                    timestamp: Date.now(),
+                    status: 'sent'
+                };
 
                 if (receiverSocketId) {
-                    socket.to(receiverSocketId).emit('recieve-message', {chatId, senderId, recieverId, message, timestamp });
-                    await messageToCacheQueue({chatId, senderId, recieverId, message, timestamp})
+                    await messageToCacheQueue(message)
+
+                    // sending message to reciever !!
+                    socket.to(receiverSocketId).emit('recieve-message', message);
+
+                    // Ack sender 
+                    socket.emit('message_sent', {tempId: data.tempId, message});
                 } else {
                     console.log(`User ${recieverId} is offline. Storing message for later delivery.`);
-                    await storeOfflineMessage({chatId, senderId, recieverId, message, timestamp});
+                    await storeOfflineMessage(message);
                 }
             })
+
+            socket.on('delivered_ack', ({messageId, chatId, senderId}) => {
+                io.to(senderId).emit('message_delivered', {messageId, chatId})
+            })
+
+            socket.on('read_ack', async ({ chatId, messageIds, userId }) => {
+                await updateUnreadCount(userId, chatId);
+                // Notifying sender !!
+                io.to(senderId).emit('messages_read', { chatId, messageIds });
+            });
 
             // -------- On disconnect -----------
 

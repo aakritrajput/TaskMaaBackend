@@ -23,7 +23,7 @@ export default function chatSocket(server){
 
             // ----------- One to One chats ---------------
 
-            socket.on('send-message', async({chatId, senderId, recieverId, text})=> { // here we are also collecting the chat id so that if there is new chat then if chat id is not provided we can create a new chat in db
+            socket.on('send-message', async({chatId, senderId, recieverId, content})=> { // here we are also collecting the chat id so that if there is new chat then if chat id is not provided we can create a new chat in db
                 let receiverSocketId = onlineUsers.get(recieverId)
                 if(!receiverSocketId){
                     receiverSocketId = await getSocketIdOfUser(recieverId);
@@ -34,7 +34,7 @@ export default function chatSocket(server){
                     chatId,
                     senderId,
                     recieverId,
-                    text,
+                    content,
                     timestamp: Date.now(),
                     status: 'sent'
                 };
@@ -43,7 +43,7 @@ export default function chatSocket(server){
                     await messageToCacheQueue(message)
 
                     // sending message to reciever !!
-                    socket.to(receiverSocketId).emit('recieve-message', message);
+                    io.to(receiverSocketId).emit('recieve-message', message);
 
                     // Ack sender 
                     socket.emit('message_sent', {tempId: data.tempId, message});
@@ -62,6 +62,45 @@ export default function chatSocket(server){
                 // Notifying sender !!
                 io.to(senderId).emit('messages_read', { chatId, messageIds });
             });
+
+            // ----------- Group chats ---------------
+             // in this we are handling cache functions here only as we need to create a loop for both emiting and caching the unread count -- so why not do that here only !!
+
+             // TODO: we have to still get the socket id's of the members not there user id's and with that handle offline users -- and also match the storing data with actual db model !!!
+            socket.on('send_group_message', async (data) => {
+                const { chatId, senderId, content } = data;
+                const members = await redis.smembers(`group:${chatId}:members`);
+            
+                const message = {
+                    id: uuid(),
+                    chatId,
+                    senderId,
+                    content,
+                    timestamp: Date.now(),
+                    deliveredTo: [],
+                    readBy: []
+                };
+            
+                await redis.lpush('message_queue', JSON.stringify(message));
+            
+                // Update last message
+                await redis.hset(`last_message:${chatId}`,
+                  'text', content,
+                  'timestamp', message.timestamp
+                );
+            
+                // Increment unread count for each member
+                for (const member of members) {
+                  if (member !== senderId) {
+                    await redis.hincrby(`unread_count:${member}`, chatId, 1);
+                    io.to(member).emit('receive_message', message);
+                  }
+                }
+            
+                socket.emit('message_sent', { tempId: data.tempId, message });
+            });
+
+
 
             // -------- On disconnect -----------
 

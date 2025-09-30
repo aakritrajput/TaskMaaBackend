@@ -40,7 +40,7 @@ const messageToCacheQueue = async(message) => {
         await redis.lpush('message_queue', JSON.stringify(message));
 
         // Update last message cache
-        await redis.hset(`last_message:${chatId}`, 'text', message.text, 'timestamp', message.timestamp)
+        await redis.hset(`last_message:${chatId}`, 'text', message.content, 'timestamp', message.timestamp)
 
         // Increment unread count
         await redis.hincrby(`unread_count:${receiverId}`, chatId, 1)

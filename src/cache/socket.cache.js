@@ -36,9 +36,28 @@ const getSocketIdOfUser = async(userId) => { // we will need this when sending m
 
 const messageToCacheQueue = async(message) => {
     try {
-        
+        // pushing to queue
+        await redis.lpush('message_queue', JSON.stringify(message));
+
+        // Update last message cache
+        await redis.hset(`last_message:${chatId}`, 'text', message.text, 'timestamp', message.timestamp)
+
+        // Increment unread count
+        await redis.hincrby(`unread_count:${receiverId}`, chatId, 1)
+
+        return 'OK'
     } catch (error) {
         console.error('Error from messageToCacheQueue: ', error)
+        return null;
+    }
+}
+
+const updateUnreadCount = async(userId, chatId) => {
+    try {
+        await redis.hdel(`unread_count:${userId}`, chatId);
+        return "OK"
+    } catch (error) {
+        console.error('Error while updating unread count in cache:', error)
         return null;
     }
 }
@@ -48,5 +67,6 @@ export {
     invalidateSocketIdForUser,
     getSocketIdOfUser,
     messageToCacheQueue,
+    updateUnreadCount,
     storeOfflineMessage,
 }

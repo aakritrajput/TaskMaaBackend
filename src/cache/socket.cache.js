@@ -62,6 +62,19 @@ const updateUnreadCount = async(userId, chatId) => {
     }
 }
 
+const storeOfflineMessage = async(message) => {
+    try {
+        const key = `offlineMessages:${message.receiverId}`
+        await redis.lpush(key, JSON.stringify(message));
+        return 'OK';
+    } catch (error) {
+        console.error('Error while storing offline messages in cache:', error)
+        return null;
+    }
+}
+
+
+
 export {
     socketIdForUser,
     invalidateSocketIdForUser,

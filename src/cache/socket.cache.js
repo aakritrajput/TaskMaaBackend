@@ -65,7 +65,7 @@ const updateUnreadCount = async(userId, chatId) => {
 const storeOfflineMessage = async(message) => {
     try {
         const key = `offlineMessages:${message.receiverId}`
-        await redis.lpush(key, JSON.stringify(message));
+        await redis.rpush(key, JSON.stringify(message)); // rpush becuase we want our messages to stay in the same order as they were sent !!
         return 'OK';
     } catch (error) {
         console.error('Error while storing offline messages in cache:', error)
@@ -73,7 +73,17 @@ const storeOfflineMessage = async(message) => {
     }
 }
 
-
+const getUsersOfflineMessages = async(userId) => {
+    try {
+        const key = `offlineMessages:${userId}`
+        const messages = await redis.lrange(key, 0, -1); // it will give the complete list of unread messages of the user
+        await redis.del(key)
+        return messages.map(msg => JSON.parse(msg)); // we are here parsing each single message because when we stored them - we stored them by parsing them to json 
+    } catch (error) {
+        console.error('Error while getting offline messages of user from cache:', error)
+        return []; // we don't want that if got any error in cache then it stops the main function hence returning empty list from error !!
+    }
+}
 
 export {
     socketIdForUser,
@@ -82,4 +92,5 @@ export {
     messageToCacheQueue,
     updateUnreadCount,
     storeOfflineMessage,
+    getUsersOfflineMessages
 }

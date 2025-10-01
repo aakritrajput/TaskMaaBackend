@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount } from "../cache/socket.cache";
+import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages } from "../cache/socket.cache";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function chatSocket(server){
@@ -18,6 +18,15 @@ export default function chatSocket(server){
             const userId = socket.handshake.query.userId
             if (!userId) return ;
 
+            // now first if there were any offline messages for this user then we will emit that immediately 
+
+            const messages = await getUsersOfflineMessages(userId);
+            if (messages.length > 0){
+                socket.emit('offline-messages', messages)
+            }
+
+            // these below commands are for miantaining the state of online users 
+        
             onlineUsers.set(userId, socket.id) // for quickly looking up socket id's in memory 
             await socketIdForUser(userId, socket.id); // if users not in the memory of the same server then we can query redis for the users socketIDs
 

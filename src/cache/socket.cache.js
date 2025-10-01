@@ -88,11 +88,22 @@ const getUsersOfflineMessages = async(userId) => {
 const getGroupChatMembers = async(chatId) => {
     try {
         const key = `groupMembers:${chatId}`
-        const members = await redis.lrange(key, 0, -1);
-        return members.map(member => JSON.parse(member));
+        const members = await redis.smembers(key);
+        return members;
     } catch (error) {
         console.error('Error getting group members of this chat from cache:', error)
         return [];
+    }
+}
+
+const addGroupChatMembersToCache = async(chatId, members) => {
+    try {
+        const key = `groupMembers:${chatId}`
+        await redis.sadd(key, ...members);
+        return 'OK';
+    } catch (error) {
+        console.error('Error getting group members of this chat from cache:', error)
+        return null;
     }
 }
 
@@ -105,5 +116,5 @@ export {
     storeOfflineMessage,
     getUsersOfflineMessages,
     getGroupChatMembers,
-    
+    addGroupChatMembersToCache
 }

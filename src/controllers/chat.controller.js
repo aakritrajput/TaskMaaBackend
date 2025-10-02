@@ -1,4 +1,5 @@
-import { checkIfMyFriend } from "../cache/user.cache.js";
+import { addGroupChatMembersToCache } from "../cache/socket.cache.js";
+import { checkIfMyFriend, getFriendsFromCache } from "../cache/user.cache.js";
 import { Chat } from "../models/chatModels/chat.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -6,7 +7,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const createOneToOneChat = async(req, res) => {
     try {
         const {friendId} = req.params 
-        if(chatWith){
+        if(!chatWith){
             throw new ApiError(400, "Please provide the userId of the user with whom you want to chat !!")
         }
         const userId = req.user._id
@@ -30,4 +31,41 @@ const createOneToOneChat = async(req, res) => {
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'Oops.. There was some Error initiating your chat !!'})
     }
+}
+
+const createGroupChat = async(req, res) => {
+    try {
+        const {participants=[], name } = req.params 
+        if(!name){
+            throw new ApiError(400, "Please provide the name of the group !!")
+        }
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, "Unauthorized Request !!")
+        }
+        const friends = await getFriendsFromCache(userId)
+        
+        const participantIds = participants.filter((participant) => friends.includes(participant))
+        participants = participantIds.map((participant) => ({user: participant, role: 'participant'}))
+
+        const chat = await Chat.create({ 
+            isGroupChat: true,
+            groupName: name,
+            users: [                           // in one to one chat our both users will be roled as 'admin'
+                {user: userId, role:'admin'},
+                ...participants
+            ]
+        })
+
+        await addGroupChatMembersToCache(chat._id, [userId, ...participantIds])
+
+        res.status(200).json(new ApiResponse(200, chat, "Successfully created your group chat !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'Oops.. There was some Error creating your group chat !!'})
+    }
+}
+
+export {
+    createOneToOneChat,
+    createGroupChat
 }

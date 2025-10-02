@@ -63,9 +63,20 @@ const getFriendsFromCache = async(userId) => {
         return data ;
     } catch (error) {
         console.error(error)
-        return null;
+        return [];
     }
 }
+
+const checkIfMyFriend = async (userId, friendId) => {
+    try {
+        const key = `user:${userId}:friends`;
+        const exists = await redis.sismember(key, friendId);
+        return exists === 1; // returns true or false
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+};
 
 export {
     userPlateFromCache,
@@ -73,5 +84,6 @@ export {
     profileFromCache,
     profileToCache,
     addFriendsToCache,
-    getFriendsFromCache
+    getFriendsFromCache,
+    checkIfMyFriend
 }

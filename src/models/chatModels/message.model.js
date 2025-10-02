@@ -44,7 +44,7 @@ const messageSchema = new Schema({
         ], 
         default: [],
     },
-    seenBy: {
+    readBy: {
         type: [
             {
                 type: mongoose.Schema.Types.ObjectId,

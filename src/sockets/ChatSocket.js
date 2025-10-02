@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages } from "../cache/socket.cache";
+import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages, getGroupChatMembers, storeOfflineMessageForGroups } from "../cache/socket.cache";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function chatSocket(server){
@@ -48,19 +48,75 @@ export default function chatSocket(server){
                     status: 'sent'
                 };
 
-                if (receiverSocketId) {
-                    await messageToCacheQueue(message)
+                await messageToCacheQueue(message) // we will store the messages in cache queue for some time and then bg worker will push it to db 
+
+                if (receiverSocketId) { // for online users emit the message
 
                     // sending message to reciever !!
                     io.to(receiverSocketId).emit('recieve-message', message);
 
                     // Ack sender 
                     socket.emit('message_sent', {tempId: data.tempId, message});
-                } else {
+
+                } else {  // for offline ones store them in cache !!
                     console.log(`User ${recieverId} is offline. Storing message for later delivery.`);
                     await storeOfflineMessage(message);
                 }
+
+                socket.emit('sent', )
             })
+
+            // ----------- Group chats ---------------
+            
+
+            socket.on('send_group_message', async (data) => {
+                const { chatId, senderId, content } = data;
+                const members = await getGroupChatMembers(chatId);
+                const message = {
+                    id: uuid(),
+                    chatId,
+                    senderId,
+                    content,
+                    timestamp: Date.now(),
+                    deliveredTo: [],
+                    readBy: [],
+                    status: 'sent',
+                };
+
+                const onlineMembersWithSocketIds = members
+                .filter(member => onlineUsers.has(member))
+                .map(member => ({ member, socketId: onlineUsers.get(member) }));  // Improvement: here we are only checking online users in the memory object and if the group members are not on the same server then it will consider them offline !! -- therefore in future can enhance it to query the cache for online users !!
+
+                const offlineMembers = members.filter(member => !onlineUsers.has(member))
+
+                // emiting messages to online users !!
+
+                const messageWithReceiverIds = {
+                    ...message,
+                    receiverIds: members
+                }
+                
+                await messageToCacheQueue(messageWithReceiverIds)
+
+                if(onlineMembersWithSocketIds){
+                    const onlineSockets = onlineMembersWithSocketIds.map((memberWithSocket) => memberWithSocket.socketId)
+                    io.to(onlineSockets).emit(message)
+                }
+                if(offlineMembers){
+                    const offlineMessageWithReceiverIds = {
+                        ...message,
+                        receiverIds: offlineMembers,
+                    }
+
+                    await storeOfflineMessageForGroups(offlineMessageWithReceiverIds)
+                }
+            
+                socket.emit('message_sent', { message }); // the message in itself has that temp. id which will be permanent in our case as we are adding that id to database too!!
+            });
+
+
+
+            // ---------- For both - group and one to one messages ----------
 
             socket.on('delivered_ack', ({messageId, chatId, senderId}) => {
                 io.to(senderId).emit('message_delivered', {messageId, chatId})
@@ -71,44 +127,6 @@ export default function chatSocket(server){
                 // Notifying sender !!
                 io.to(senderId).emit('messages_read', { chatId, messageIds });
             });
-
-            // ----------- Group chats ---------------
-             // in this we are handling cache functions here only as we need to create a loop for both emiting and caching the unread count -- so why not do that here only !!
-
-             // TODO: we have to still get the socket id's of the members not there user id's and with that handle offline users -- and also match the storing data with actual db model !!!
-            socket.on('send_group_message', async (data) => {
-                const { chatId, senderId, content } = data;
-                const members = await redis.smembers(`group:${chatId}:members`);
-            
-                const message = {
-                    id: uuid(),
-                    chatId,
-                    senderId,
-                    content,
-                    timestamp: Date.now(),
-                    deliveredTo: [],
-                    readBy: []
-                };
-            
-                await redis.lpush('message_queue', JSON.stringify(message));
-            
-                // Update last message
-                await redis.hset(`last_message:${chatId}`,
-                  'text', content,
-                  'timestamp', message.timestamp
-                );
-            
-                // Increment unread count for each member
-                for (const member of members) {
-                  if (member !== senderId) {
-                    await redis.hincrby(`unread_count:${member}`, chatId, 1);
-                    io.to(member).emit('receive_message', message);
-                  }
-                }
-            
-                socket.emit('message_sent', { tempId: data.tempId, message });
-            });
-
 
 
             // -------- On disconnect -----------

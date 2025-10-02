@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
+import { addFriendsToCache, profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 import { Stats } from "../models/stats.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
@@ -193,8 +193,12 @@ const responseToFriendRequest = async(req, res) => {
             //TODO: here we can implement the notification in future 
 
             await session.commitTransaction()
+
+            if(response == 'accepted'){
+                await addFriendsToCache(userId, friendId)
+            }
     
-            res.status(200).json(new ApiResponse(200, {}, "Friend Request sent successfully !!"))
+            res.status(200).json(new ApiResponse(200, {}, "Friend Request responded successfully !!"))
        } catch (error) {
             await session.abortTransaction()
             res.status(500).json({message: error.message || "Error responding to friend request of the given user !!"})

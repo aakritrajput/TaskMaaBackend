@@ -52,7 +52,18 @@ const addFriendsToCache = async(userId, data) => {  // with these we can add a s
         return response;
     } catch (error) {
         console.error(error)
-        return [];
+        return null;
+    }
+}
+
+const getFriendsFromCache = async(userId) => {
+    try {
+        const key = `user:${userId}:friends`
+        const data = await redis.smembers(key)
+        return data ;
+    } catch (error) {
+        console.error(error)
+        return null;
     }
 }
 
@@ -61,5 +72,6 @@ export {
     userPlateToCache,
     profileFromCache,
     profileToCache,
-    addFriendsToCache
+    addFriendsToCache,
+    getFriendsFromCache
 }

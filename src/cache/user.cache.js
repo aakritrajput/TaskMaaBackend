@@ -78,6 +78,17 @@ const checkIfMyFriend = async (userId, friendId) => {
     }
 };
 
+const removeFriendFromCache = async (userId, friendId) => {
+    try {
+      const key = `user:${userId}:friends`;
+      const result = await redis.srem(key, friendId);
+      return result === 1; // true if removed, false if not found
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+};
+
 export {
     userPlateFromCache,
     userPlateToCache,
@@ -85,5 +96,6 @@ export {
     profileToCache,
     addFriendsToCache,
     getFriendsFromCache,
-    checkIfMyFriend
+    checkIfMyFriend,
+    removeFriendFromCache
 }

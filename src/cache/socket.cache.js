@@ -42,8 +42,15 @@ const messageToCacheQueue = async(message) => {
         // Update last message cache
         await redis.hset(`last_message:${chatId}`, 'text', message.content, 'timestamp', message.timestamp)
 
-        // Increment unread count
-        await redis.hincrby(`unread_count:${receiverId}`, chatId, 1)
+        // Increment unread count one to one chat 
+        if(message.receiverId){
+            await redis.hincrby(`unread_count:${message.receiverId}`, chatId, 1)
+        }
+        else if(message.receiverIds){ // incrementing for group chats 
+            for (let receiverId of message.receiverIds){
+                await redis.hincrby(`unread_count:${receiverId}`, chatId, 1)
+            }
+        }
 
         return 'OK'
     } catch (error) {
@@ -66,6 +73,19 @@ const storeOfflineMessage = async(message) => {
     try {
         const key = `offlineMessages:${message.receiverId}`
         await redis.rpush(key, JSON.stringify(message)); // rpush becuase we want our messages to stay in the same order as they were sent !!
+        return 'OK';
+    } catch (error) {
+        console.error('Error while storing offline messages in cache:', error)
+        return null;
+    }
+}
+
+const storeOfflineMessageForGroups = async(message) => {
+    try {
+        for (let receiverId of message.receiverIds){
+            const key = `offlineMessages:${receiverId}`
+            await redis.rpush(key, JSON.stringify(message));
+        }
         return 'OK';
     } catch (error) {
         console.error('Error while storing offline messages in cache:', error)
@@ -114,6 +134,7 @@ export {
     messageToCacheQueue,
     updateUnreadCount,
     storeOfflineMessage,
+    storeOfflineMessageForGroups,
     getUsersOfflineMessages,
     getGroupChatMembers,
     addGroupChatMembersToCache

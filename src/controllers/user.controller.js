@@ -330,4 +330,5 @@ export {
     responseToFriendRequest,
     searchByUsername,
     getUserProfile,
+    editProfile
 }

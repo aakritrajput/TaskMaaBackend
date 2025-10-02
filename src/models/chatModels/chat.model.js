@@ -28,6 +28,7 @@ const chatSchema = new Schema({
         text: String,
         senderId: String,
         timestamp: String,
+        default: '',
     },
 
     // Only for group chats

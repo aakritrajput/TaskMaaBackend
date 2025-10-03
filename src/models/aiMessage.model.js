@@ -10,7 +10,7 @@ const aiMessageSchema = new Schema({
     content: { 
         type: String, 
         required: true 
-    }, // AI-generated message
+    }, // This will be an ai generated message for the user
     taskId: { 
         type: Schema.Types.ObjectId, // optional -- as this can be usefull if want to show maa's messages for a particular task
         ref: "Task" 

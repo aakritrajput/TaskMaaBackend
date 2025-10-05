@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node -r dotenv/config src/index.js",
-    "dev": "nodemon -r dotenv/config src/index.js"
+    "dev": "nodemon -r dotenv/config src/services/aiService.js"
   },
   "keywords": [
     "TaskMaa",
@@ -19,6 +19,7 @@
   "author": "Aakrit",
   "license": "ISC",
   "dependencies": {
+    "@huggingface/inference": "^4.11.0",
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.7.0",

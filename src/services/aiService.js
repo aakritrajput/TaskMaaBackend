@@ -10,7 +10,7 @@ const out = await client.chatCompletion({
     max_tokens: 512
 });
 
-console.log("This is the response: ", out.choices);
+console.log("This is the response: ", out.choices[0]);
 
 // for await (const chunk of client.chatCompletionStream({
 //   model: "meta-llama/Llama-3.1-8B-Instruct",

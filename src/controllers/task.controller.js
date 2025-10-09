@@ -98,7 +98,7 @@ const getAllTasks = async (req, res) => {
         if (tasks.length > limitNumber) {
             nextCursor = tasks[tasks.length - 1].createdAt.toISOString(); 
             tasks.pop(); // remove the extra one
-        } 
+        }
 
         // final response
         const responseData = {
@@ -108,11 +108,11 @@ const getAllTasks = async (req, res) => {
             nextCursor,
             hasMore: !!nextCursor //strict not operator --> can force any value to boolean
           }
-        };    
+        };
 
         await user_tasks_to_cache(userId, responseData, nextCursor, limitNumber)
 
-        res.status(200).json(new ApiResponse(200, responseData, "Here are your tasks!"));  
+        res.status(200).json(new ApiResponse(200, responseData, "Here are your tasks!"));
     } catch (error) {
         console.error("Error in getAllTasks:", error.message);
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error getting your tasks!'});

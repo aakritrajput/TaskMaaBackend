@@ -53,7 +53,7 @@ const creatGroupTask = async(req, res) => {
     }
 }
 
-const getMyGroupTask = async(req, res) => {
+const getMyGroupTasks = async(req, res) => {
     try {
         const userId = req.user._id
         if(!userId){
@@ -264,7 +264,7 @@ const actionToInviteForGroupTask = async(req, res) => {
 
 export {
     creatGroupTask,
-    getMyGroupTask,
+    getMyGroupTasks,
     deleteGroupTask,
     editGroupTask,
     markCompleted,

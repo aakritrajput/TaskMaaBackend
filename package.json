@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node -r dotenv/config src/index.js",
-    "dev": "nodemon -r dotenv/config src/services/aiService.js"
+    "dev": "nodemon -r dotenv/config src/index.js"
   },
   "keywords": [
     "TaskMaa",

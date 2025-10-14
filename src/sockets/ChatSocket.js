@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages, getGroupChatMembers, storeOfflineMessageForGroups } from "../cache/socket.cache";
+import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages, getGroupChatMembers, storeOfflineMessageForGroups } from "../cache/socket.cache.js";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function chatSocket(server){

@@ -9,6 +9,14 @@ import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 const register = async(req, res) => {
     try {
         const {username, email, password, confirmPassword} = req.body
+        if(!username || !email || !password || !confirmPassword){
+            console.log("1st catch error")
+            throw new ApiError(400, 'Please provide all details !!')
+        }
+        if(password !== confirmPassword){
+            console.log("2nd catch error")
+            throw new ApiError(400, 'ConfirmPassword does not matches Password !!')
+        }
         const existingUser = await User.find({
             $or: [
                 { email },
@@ -18,22 +26,20 @@ const register = async(req, res) => {
 
         if(existingUser.length > 0){
             console.log(existingUser)
-            throw new ApiError(400, "user already exists with the given username or email!!")
+            throw new ApiError(400, "User already exists with the given username or email !!")
         }
 
         const user = await User.create({
             username,
             email,
-            password,
+            hashedPassword: password,
         })
 
         if(!user){
             throw new ApiError(500, "There was a problem creating user on the backend!!")
         }
-        // for now we are skipping the varification part we will do that later on !! 
 
-        const createdUser = await User.findById(user._id).select("-password")
-        res.status(200).json(new ApiResponse(201, createdUser, "User created successfully !!"))
+        res.status(200).json(new ApiResponse(201, 'OK', "User created successfully !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error registering user !!"})
     }
@@ -85,7 +91,7 @@ const login = async(req, res) => {
 const authCheck = (req, res) =>{
     if (req.user){
         const user = req.user
-        res.status(200).json(new ApiResponse(200, {user}, "User "))
+        res.status(200).json(new ApiResponse(200, user, "User "))
     }else{
         res.status(401).json({message: 'unAuthenticated Request'})
     }

@@ -1,4 +1,4 @@
-import { redis } from "../db/redis";
+import { redis } from "../db/redis.js";
 
 const userPlateFromCache = async(username) => { // here i am referencing userPlate for the card info that we got on the search card !!
     try {

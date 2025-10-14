@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken"
 import { ApiError } from "../utils/ApiError"
 import { User } from "../models/user.model"
 
-const authCheck = async(req, res, next) => {
+export const verifyJwt = async(req, res, next) => {
     try {
         const accessToken = req.cookies?.accessToken
         if(!accessToken){

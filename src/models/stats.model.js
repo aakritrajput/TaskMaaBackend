@@ -45,6 +45,4 @@ const statsSchema = new Schema(
   { timestamps: true }
 );
 
-statsSchema.index({userId: 1})
-
 export const Stats = mongoose.model("Stats", statsSchema);

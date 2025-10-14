@@ -77,8 +77,6 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-userSchema.index({username: 1}) // indexing on username for faster username searches !!
-
 userSchema.pre("save", async function(next){
     if(this.isModified("hashedPassword")){
         this.hashedPassword = await bcrypt.hash(this.hashedPassword, 10) // if the hashed password is changed so before saving it hash the new password !!

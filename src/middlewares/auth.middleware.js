@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken"
-import { ApiError } from "../utils/ApiError"
-import { User } from "../models/user.model"
+import { ApiError } from "../utils/ApiError.js"
+import { User } from "../models/user.model.js"
 
 export const verifyJwt = async(req, res, next) => {
     try {
@@ -33,11 +33,12 @@ export const verifyJwt = async(req, res, next) => {
                 if(!newRefreshToken){
                     throw new ApiError(500, "There was a problem generating new refreshToken")
                 }
-
+                
                 const options = {
                     httpOnly: true,
                     secure: true,
                     sameSite: 'None',
+                    maxAge: 7 * 24 * 60 * 60 * 1000,
                 }
 
                 res

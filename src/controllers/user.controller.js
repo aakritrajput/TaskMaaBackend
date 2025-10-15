@@ -76,6 +76,7 @@ const login = async(req, res) => {
             httpOnly: true,
             secure: true,
             sameSite: 'None',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // here we are setting cookies for 7 days but obviously our access token will expire i requored time which has set so we don't need to worry as it will reset the cookie if it is expire 
         }
 
         res

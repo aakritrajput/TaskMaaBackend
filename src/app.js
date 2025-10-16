@@ -6,6 +6,7 @@ import chatSocket from './sockets/ChatSocket.js';
 
 // ---- Importing routes -------
 import userRouter from './routes/user.routes.js'
+import taskRouter from './routes/task.routes.js'
 
 const app = express()
 
@@ -21,6 +22,7 @@ app.use(express.static('public'))
 
 
 app.use('/api/user', userRouter)
+app.use('/api/tasks', taskRouter)
 
 const server = http.createServer(app);
 

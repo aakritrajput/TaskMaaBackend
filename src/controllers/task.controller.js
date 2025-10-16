@@ -1,5 +1,5 @@
 import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/task.cache.js";
-import { Task } from "../models/task.model";
+import { Task } from "../models/task.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -20,7 +20,7 @@ const addTask = async(req, res) => {
         const taskData = {
             user: user._id,
             title,
-            dueDate, // this should be in proper date type !!
+            dueDate: new Date(dueDate)
         }
         for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are checking for not required fields as we will be having some sought of default values for them in our model !!
             const value = req.body[field];  
@@ -163,6 +163,7 @@ const getTodaysTasks = async(req, res) => {
         endOfDay.setHours(23, 59, 59, 999); // Today at 23:59:59.999
         
         const tasks_from_db = await Task.find({
+          type: 'daily',
           createdAt: {
             $gte: startOfDay,
             $lt: endOfDay
@@ -196,6 +197,7 @@ const getGeneralTasks = async(req, res) => {
         const today = new Date();
         const tasks_from_db = await Task.find({ // it returns task who's (due date + 7 days) is greator then today
             user: userId,
+            type: 'general',
             $expr: {
                 $gt: [
                     { $add: ["$dueDate", 7 * 24 * 60 * 60 * 1000] }, // dueDate + 7 days
@@ -240,16 +242,16 @@ const editTask = async(req, res) => {
             taskData[field] = value;
         }
 
-        const returnedTask = await Task.findByIdAndUpdate(taskId, taskData, { new: true })
+        const returnedTask = await Task.findByIdAndUpdate(taskId, taskData)
 
         if(returnedTask.type == 'daily'){
             await invalidate_todays_tasks(user._id)
         }else{
             await invalidate_general_tasks(user._id)
         }
-        res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the Task !!"))
+        res.status(200).json(new ApiResponse(200, returnedTask, "Successfully Edited the Task !!"))
     } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error editing your task !!'})
     }
 }
 

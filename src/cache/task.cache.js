@@ -1,6 +1,6 @@
 import { redis } from "../db/redis.js";
 
-USER_PREFIX = 'user:'
+const USER_PREFIX = 'user:'
 
 const user_tasks_to_cache = async (user_id, data, cursor, limit = 20, ttl = 120) => { // here we are only caching for 2 minutes as these tasks would not be on main page and hence they will automatically be invalidate after 2 minutes
     try {

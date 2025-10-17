@@ -3,7 +3,6 @@ import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { addFriendsToCache, profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
-import { Stats } from "../models/stats.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
 const register = async(req, res) => {
@@ -244,35 +243,35 @@ const searchByUsername = async(req, res) => {
     }
 }
 
-const getUserProfile = async(req, res) => {
-    try {
-        const userId = req.params
-        if(!userId){
-            throw new ApiError(400, "No userId provided !!")
-        }
+// const getUserProfile = async(req, res) => {
+//     try {
+//         const userId = req.params
+//         if(!userId){
+//             throw new ApiError(400, "No userId provided !!")
+//         }
 
-        const dataFromCache = await profileFromCache(userId) ;
-        if(dataFromCache){
-            res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
-            return ;
-        }
-        const dataFromDb = await Stats.findOne({userId}).select('userId profileType overallScore badges').populate('userId', 'username name profilePicture about').lean()
-        if(!dataFromDb){
-            throw new ApiError(400, "No user exist with the given userId. Please provide a valid userId")
-        }
+//         const dataFromCache = await profileFromCache(userId) ;
+//         if(dataFromCache){
+//             res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
+//             return ;
+//         }
+//         const dataFromDb = await Stats.findOne({userId}).select('userId profileType overallScore badges').populate('userId', 'username name profilePicture about').lean()
+//         if(!dataFromDb){
+//             throw new ApiError(400, "No user exist with the given userId. Please provide a valid userId")
+//         }
 
-        if(dataFromDb.profileType == 'private'){
-            delete dataFromDb.badges;
-            delete dataFromDb.overallScore;
-            delete dataFromDb.userId.about;
-        }
+//         if(dataFromDb.profileType == 'private'){
+//             delete dataFromDb.badges;
+//             delete dataFromDb.overallScore;
+//             delete dataFromDb.userId.about;
+//         }
 
-        await profileToCache(userId, dataFromDb);
-        res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
-    } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
-    }
-}
+//         await profileToCache(userId, dataFromDb);
+//         res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
+//     } catch (error) {
+//         res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
+//     }
+// }
 
 const editProfile = async(req, res) => { // we have not created any caching function for profile as our access token already contains the profile info and the rest we are calling through seperate api's
     try {
@@ -333,6 +332,23 @@ const editProfile = async(req, res) => { // we have not created any caching func
     }
 }
 
+const deleteAccountHandler = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, "Unauthorized Request !!")
+        }
+
+        await User.findByIdAndDelete(userId)
+           
+         res.clearCookie('accessToken', { httpOnly: true, secure: true, sameSite: 'None' });
+  res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+        res.status(200).json(new ApiResponse(200, OK, "Successfully deleted !!"))
+    } catch (error) {
+         res.status(error.statusCode || 500).json({message: error.message || "There was some error deleting your account" })
+    }
+}
+
 export {
     register, 
     login,
@@ -340,6 +356,7 @@ export {
     sendFriendRequest,
     responseToFriendRequest,
     searchByUsername,
-    getUserProfile,
-    editProfile
+    // getUserProfile,
+    editProfile,
+    deleteAccountHandler
 }

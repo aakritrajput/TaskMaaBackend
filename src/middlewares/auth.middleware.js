@@ -42,12 +42,13 @@ export const verifyJwt = async(req, res, next) => {
                 }
 
                 res
-                .cookies('accessToken', newAccessToken, options)
-                .cookies('refreshToken', newRefreshToken, options)
+                .cookie('accessToken', newAccessToken, options)
+                .cookie('refreshToken', newRefreshToken, options)
 
-                req.user = {_id: user._id, email: user.email, username: user.username} // here attached only few things so that the req. should match with the req. updated using access token as that also include only these three things !!
+                req.user = {_id: user._id, email: user.email, username: user.username, profileType: user.profileType , name: user.name, profilePicture: user.profilePicture} // here attached only few things so that the req. should match with the req. updated using access token as that also include only these three things !!
                 next();
             }else{
+                console.log('error is else', error.message)
                 res.status(error.statusCode || 401).json({message: error.message || "Invalid Access token.. Please login !!"})
             }
         } catch (err) {

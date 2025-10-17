@@ -1,7 +1,9 @@
+import { invalidatePerformanceCache } from "../cache/stats.cache.js";
 import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, invalidate_todays_tasks, user_tasks_from_cache, user_tasks_to_cache, users_general_tasks_cache, users_todays_tasks_cache } from "../cache/task.cache.js";
 import { Task } from "../models/task.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { updateOverAllScore } from "../workers/overAllScoreWorker.js";
 
 const addTask = async(req, res) => {
     try {
@@ -131,8 +133,13 @@ const deleteTask = async(req, res) => {
         }
 
         const deletedTask = await Task.findByIdAndDelete(taskId)
+        console.log('deletedTask: ', deletedTask)
+        if(deletedTask.status == 'completed'){
+            updateOverAllScore(userId, 'deletedCompleted')
+            await invalidatePerformanceCache(userId);
+        }
 
-        if(deletedTask.type == 'daily'){ // here we can apply deep check that if the daily task is today's task and if yes then only invalidate today's task cache else not similarly for general tasks also ---> if this deleted task also belongs to our cached tasks range !!
+        if(deletedTask?.type == 'daily'){ // here we can apply deep check that if the daily task is today's task and if yes then only invalidate today's task cache else not similarly for general tasks also ---> if this deleted task also belongs to our cached tasks range !!
             await invalidate_todays_tasks(userId)
         }else{
             await invalidate_general_tasks(userId)
@@ -163,6 +170,7 @@ const getTodaysTasks = async(req, res) => {
         endOfDay.setHours(23, 59, 59, 999); // Today at 23:59:59.999
         
         const tasks_from_db = await Task.find({
+          user: userId,
           type: 'daily',
           createdAt: {
             $gte: startOfDay,
@@ -236,10 +244,18 @@ const editTask = async(req, res) => {
             user: user._id,
             title
         }
-        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){
-            const value = req.body[field];  
-            if (!value) continue ; // it will skip all falsy values !!
+        for (const field of ['description', 'importance', 'completedOn' ,'status','weeklyProgress', 'type', 'dueDate']){
+            const value = req.body[field];
+            if (!value && field !== 'completedOn') continue ; // it will skip all falsy values !!
             taskData[field] = value;
+            if(field == 'status' && value){  // if the value of status is not provided to edit then not firing the overallWorker 
+                if(value == 'completed'){
+                    updateOverAllScore(user._id, 'markedComplete')
+                }
+                else if(value == 'inProgress'){
+                    updateOverAllScore(user._id, 'markedUncomplete')
+                }
+            }
         }
 
         const returnedTask = await Task.findByIdAndUpdate(taskId, taskData)
@@ -249,6 +265,8 @@ const editTask = async(req, res) => {
         }else{
             await invalidate_general_tasks(user._id)
         }
+        await invalidatePerformanceCache(user._id);
+        console.log('edited done !!')
         res.status(200).json(new ApiResponse(200, returnedTask, "Successfully Edited the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error editing your task !!'})

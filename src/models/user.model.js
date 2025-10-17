@@ -67,12 +67,38 @@ const userSchema = new Schema(
        ],
        default: [],
     },
+
+    // stat fields
+
+    currentStreak: {
+      type: Number,
+      default: 0,
+    },
+    longestStreak: {
+      type: Number,
+      default: 0,
+    },
+    overallScore: {
+      type: Number,
+      default: 0,
+    },
+    weeklyProgress: {
+      type: [Number],
+      default: [0,0,0,0,0,0,0],
+    },
+    badges: {
+      type: [String],
+      default: [],
+    },
+
     // Things required in chat feature
+    
     unreadMessages: {  //  total unread across all chats
       type: Number, 
       default: 0 
     },
     lastOnline: { type: Date },
+    lastStreakOn: {type: String}, // we will just store date
   },
   { timestamps: true }
 );

@@ -23,7 +23,7 @@ const taskSchema = new Schema({
         enum: ["inProgress", "completed"], 
         default: "inProgress" 
     },
-    type: { 
+    type: {
         type: String, 
         enum: ["daily", "general"], 
         default: "general" 
@@ -32,6 +32,10 @@ const taskSchema = new Schema({
         type: Date,
         required: true
     },
+    completedOn: {
+        type: Date,
+        default: undefined
+    }
 }, { timestamps: true });
 
 export const Task = mongoose.model("Task", taskSchema)

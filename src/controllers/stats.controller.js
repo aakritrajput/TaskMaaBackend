@@ -55,7 +55,7 @@ const updateStreak = async(req, res) => {
         if(user.lastStreakOn == today && action == 'remove'){
             console.log('remove streak runs !!')
             user.currentStreak -= 1 // this is if 1 time we updated teh streak but if again the user marks the same 1st task as uncompleted --
-            if(user.currentStreak = 0){
+            if(user.currentStreak == 0){
                 user.lastStreakOn = new Date(Date.now() - (86400000 * 2)).toDateString() // it is a placeholder that if current Streak is zero which means he has missed one day !! therefore here we are taking assuming the last streak is 2 days before
             }
             else if(user.currentStreak > 0){

@@ -3,7 +3,7 @@ import { cache_general_tasks, cache_todays_tasks, invalidate_general_tasks, inva
 import { Task } from "../models/task.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { updateOverAllScore } from "../workers/overAllScoreWorker.js";
+import { updateOverAllScore, updateWeeklyScore } from "../workers/overAllScoreWorker.js";
 
 const addTask = async(req, res) => {
     try {
@@ -247,6 +247,10 @@ const editTask = async(req, res) => {
         }
         for (const field of ['description', 'importance', 'completedOn' ,'status','weeklyProgress', 'type', 'dueDate']){
             const value = req.body[field];
+            if(field == 'weeklyProgress'){ // here we will extract the weekly progress from the request and will update the same in db but will not write it in the task update as this field belongs to User model not task !!
+                updateWeeklyScore(user._id, value);
+                continue ;
+            }
             if (!value && field !== 'completedOn') continue ; // it will skip all falsy values except completedOn !!
             taskData[field] = value;
             if(field == 'status' && value){  // if the value of status is not provided to edit then not firing the overallWorker 
@@ -259,8 +263,6 @@ const editTask = async(req, res) => {
             }
         }
 
-        console.log('edited task data: ', taskData)
-
         const returnedTask = await Task.findByIdAndUpdate(taskId, taskData)
 
         if(returnedTask.type == 'daily'){
@@ -269,7 +271,6 @@ const editTask = async(req, res) => {
             await invalidate_general_tasks(user._id)
         }
         await invalidatePerformanceCache(user._id);
-        console.log('edited done !!')
         res.status(200).json(new ApiResponse(200, returnedTask, "Successfully Edited the Task !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error editing your task !!'})

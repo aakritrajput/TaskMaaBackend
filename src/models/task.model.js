@@ -34,7 +34,7 @@ const taskSchema = new Schema({
     },
     completedOn: {
         type: Date,
-        default: undefined
+        default: '',
     }
 }, { timestamps: true });
 

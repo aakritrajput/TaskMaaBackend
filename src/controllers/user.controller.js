@@ -343,7 +343,7 @@ const deleteAccountHandler = async(req, res) => {
            
          res.clearCookie('accessToken', { httpOnly: true, secure: true, sameSite: 'None' });
   res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
-        res.status(200).json(new ApiResponse(200, OK, "Successfully deleted !!"))
+        res.status(200).json(new ApiResponse(200, 'OK', "Successfully deleted !!"))
     } catch (error) {
          res.status(error.statusCode || 500).json({message: error.message || "There was some error deleting your account" })
     }

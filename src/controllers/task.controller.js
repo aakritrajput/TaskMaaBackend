@@ -159,6 +159,7 @@ const getTodaysTasks = async(req, res) => {
 
         const cachedData = await users_todays_tasks_cache(userId);
         if (cachedData) {
+            console.log('tasks given from cache !!')
             res.status(200).json(new ApiResponse(200, cachedData, "Here are your today's tasks"))
             return ;
         }
@@ -181,7 +182,7 @@ const getTodaysTasks = async(req, res) => {
         if(tasks_from_db.length > 0){
             await cache_todays_tasks(userId, tasks_from_db)
         }
-        
+        console.log('tasks from db: ', tasks_from_db)
         res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))
         
     } catch (error) {
@@ -246,7 +247,7 @@ const editTask = async(req, res) => {
         }
         for (const field of ['description', 'importance', 'completedOn' ,'status','weeklyProgress', 'type', 'dueDate']){
             const value = req.body[field];
-            if (!value && field !== 'completedOn') continue ; // it will skip all falsy values !!
+            if (!value && field !== 'completedOn') continue ; // it will skip all falsy values except completedOn !!
             taskData[field] = value;
             if(field == 'status' && value){  // if the value of status is not provided to edit then not firing the overallWorker 
                 if(value == 'completed'){
@@ -257,6 +258,8 @@ const editTask = async(req, res) => {
                 }
             }
         }
+
+        console.log('edited task data: ', taskData)
 
         const returnedTask = await Task.findByIdAndUpdate(taskId, taskData)
 

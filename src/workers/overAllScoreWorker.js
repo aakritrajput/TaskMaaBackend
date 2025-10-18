@@ -1,6 +1,9 @@
 import { User } from "../models/user.model.js";
 
+// this file also contains the logic to update weekly updates in batches !!
+
 let collectedOverallScores = new Map();
+let collectedWeeklyUpdates = {};
 
 const actionScores = {
     markedComplete: { plus: 5 },
@@ -18,6 +21,12 @@ const actionScores = {
     streak1Y: { plus: 1000 },
 };
 
+export function updateWeeklyScore(userId, data){
+  // action: 'complete' or 'uncomplete'
+  if(!data) return ;
+  collectedWeeklyUpdates[userId] = data ; // it should be that list of updated Weekly score !!
+}
+
 export function updateOverAllScore(userId, action) {
     
     if (!actionScores[action]) return;  
@@ -26,10 +35,8 @@ export function updateOverAllScore(userId, action) {
     const currentScore = collectedOverallScores.get(userId) || 0;   
 
     if ("plus" in scoreData) {
-      console.log('plus runs - complete')
       collectedOverallScores.set(userId, currentScore + scoreData.plus);
     } else if ("minus" in scoreData) {
-      console.log('minus runs in worker')
       collectedOverallScores.set(userId, currentScore - scoreData.minus);
     }
 }
@@ -43,12 +50,21 @@ setInterval(async () => {
       const updates = [];   
 
       for (const [userId, scoreChange] of collectedOverallScores.entries()) {
+        
+        collectedWeeklyUpdates[userId] ? 
+        updates.push({
+          updateOne: {
+            filter: {_id: userId},
+            update: {$inc: {overallScore: scoreChange}, $set: { weeklyProgress: collectedWeeklyUpdates[userId] } }
+          }
+        })
+        :
         updates.push({
           updateOne: {
             filter: { _id: userId },
             update: { $inc: { overallScore: scoreChange } },
           },
-        });
+        })
       }
 
       await User.bulkWrite(updates);    

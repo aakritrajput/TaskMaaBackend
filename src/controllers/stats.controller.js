@@ -13,18 +13,28 @@ const getMyPerformance = async(req, res) => {
             throw new ApiError(400, "Unauthorised request !!")
         }
 
-        console.log('performance runs !!')
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // for only accounting dates
 
         const dataFromCache = await performanceFromCache(userId);
-        if(dataFromCache){
-            res.status(200).json(new ApiResponse(200, dataFromCache, "Here is your performance !!"))
-            return ;
+
+        if(dataFromCache){ // return cached data only if the last streak was today !!
+            const cacheLastDay = new Date(dataFromCache.lastStreakOn)
+            cacheLastDay.setHours(0,0,0,0);
+    
+            const cacheDayGapMs = today - cacheLastDay ;
+            const gapDaysCache = Math.floor(cacheDayGapMs / (1000 * 60 * 60 * 24))
+
+            if(gapDaysCache == 0){
+                res.status(200).json(new ApiResponse(200, dataFromCache, "Here is your performance !!"))
+                return ;
+            }
         }
 
         const dataFromDb = await User.findById(userId).select('currentStreak longestStreak overallScore weeklyProgress lastStreakOn badges').lean()
         
-        const today = new Date();
         const last = new Date(dataFromDb.lastStreakOn);
+        last.setHours(0, 0, 0, 0);
         
         const gapMs = today - last; // difference in milliseconds
         const gapDays = Math.floor(gapMs / (1000 * 60 * 60 * 24));
@@ -34,6 +44,7 @@ const getMyPerformance = async(req, res) => {
                 dataFromDb.weeklyProgress.push(0);       // adding zero for missing day
                 if (dataFromDb.weeklyProgress.length > 7) dataFromDb.weeklyProgress.shift(); // will keep only last 7 entries
             }
+            await User.findByIdAndUpdate(userId, {weeklyProgress: dataFromDb.weeklyProgress}) // we are updating the db too !! --- and here we are making extra db call because we don't want that even for whole day when we are reading db we read it without lean() and lean() does not provide .save() therefore here this way of update !!
         }
         
         await performanceToCache(userId, dataFromDb)
@@ -53,7 +64,6 @@ const updateStreak = async(req, res) => {
 
         // just a check that if lastStreakUpdate is today then do nothing but this should be make sure in frontend to only call the api for first task completion
         if(user.lastStreakOn == today && action == 'remove'){
-            console.log('remove streak runs !!')
             user.currentStreak -= 1 // this is if 1 time we updated teh streak but if again the user marks the same 1st task as uncompleted --
             if(user.currentStreak == 0){
                 user.lastStreakOn = new Date(Date.now() - (86400000 * 2)).toDateString() // it is a placeholder that if current Streak is zero which means he has missed one day !! therefore here we are taking assuming the last streak is 2 days before
@@ -69,7 +79,6 @@ const updateStreak = async(req, res) => {
             user.currentStreak += 1
             user.lastStreakOn = today;
         }else{
-            console.log('streak current setting runs !!')
             user.currentStreak = 1
             user.lastStreakOn = today;
         }
@@ -98,6 +107,8 @@ const updateStreak = async(req, res) => {
         res.status(error.status || 500).json({message: error.message || 'There was some error updating your streak' })
     }
 }
+
+
 
 const getLeaderBoard = async(req, res) => {
     try {

@@ -8,6 +8,7 @@ import chatSocket from './sockets/ChatSocket.js';
 import userRouter from './routes/user.routes.js'
 import taskRouter from './routes/task.routes.js'
 import dashboardRoutes from './routes/dashboard.routes.js'
+import groupTaskRoutes from './routes/groupTask.routes.js'
 
 const app = express()
 
@@ -25,6 +26,7 @@ app.use(express.static('public'))
 app.use('/api/user', userRouter)
 app.use('/api/tasks', taskRouter)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/groupTask', groupTaskRoutes)
 
 const server = http.createServer(app);
 

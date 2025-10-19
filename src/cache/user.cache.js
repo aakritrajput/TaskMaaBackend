@@ -45,10 +45,10 @@ const profileToCache = async(userId, data, ttl=300) => { // for 5 minutes
     }
 }
 
-const addFriendsToCache = async(userId, data) => {  // with these we can add a single friend or array of friends to cache !!
+const addFriendsToCache = async(userId, data, ttl=600) => {  // with these we can add a single friend or array of friends to cache !!
     try {
         const key = `user:${userId}:friends`
-        const response = await redis.sadd(key,  ...(Array.isArray(data) ? data : [data]))
+        const response = await redis.set(key, JSON.stringify(data), 'EX',  )
         return response;
     } catch (error) {
         console.error(error)
@@ -59,12 +59,16 @@ const addFriendsToCache = async(userId, data) => {  // with these we can add a s
 const getFriendsFromCache = async(userId) => {
     try {
         const key = `user:${userId}:friends`
-        const data = await redis.smembers(key)
-        return data ;
+        const data = await redis.get(key)
+        return data ? JSON.parse(data) : null;
     } catch (error) {
         console.error(error)
         return [];
     }
+}
+
+const invalidate_friends_in_cache = async(userId) => {
+
 }
 
 const checkIfMyFriend = async (userId, friendId) => {
@@ -78,11 +82,11 @@ const checkIfMyFriend = async (userId, friendId) => {
     }
 };
 
-const removeFriendFromCache = async (userId, friendId) => {
+const removeFriendsFromCache = async (userId, friendId) => {
     try {
       const key = `user:${userId}:friends`;
-      const result = await redis.srem(key, friendId);
-      return result === 1; // true if removed, false if not found
+      const result = await redis.del(key);
+      return result;
     } catch (error) {
       console.error(error);
       return false;
@@ -97,5 +101,5 @@ export {
     addFriendsToCache,
     getFriendsFromCache,
     checkIfMyFriend,
-    removeFriendFromCache
+    removeFriendsFromCache
 }

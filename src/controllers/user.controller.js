@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { addFriendsToCache, profileFromCache, profileToCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
+import { addFriendsToCache, getFriendsFromCache, profileFromCache, profileToCache, removeFriendsFromCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
 const register = async(req, res) => {
@@ -201,7 +201,7 @@ const responseToFriendRequest = async(req, res) => {
             await session.commitTransaction()
 
             if(response == 'accepted'){
-                await addFriendsToCache(userId, friendId)
+                await removeFriendsFromCache(userId)
             }
     
             res.status(200).json(new ApiResponse(200, {}, "Friend Request responded successfully !!"))
@@ -341,11 +341,43 @@ const deleteAccountHandler = async(req, res) => {
 
         await User.findByIdAndDelete(userId)
            
-         res.clearCookie('accessToken', { httpOnly: true, secure: true, sameSite: 'None' });
-  res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
+        res.clearCookie('accessToken', { httpOnly: true, secure: true, sameSite: 'None' });
+        res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'None' });
         res.status(200).json(new ApiResponse(200, 'OK', "Successfully deleted !!"))
     } catch (error) {
-         res.status(error.statusCode || 500).json({message: error.message || "There was some error deleting your account" })
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error deleting your account" })
+    }
+}
+
+const getMyFriends = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, 'Unauthorized !!')
+        }
+
+        const friendsFromCache = await getFriendsFromCache(userId);
+
+        if(friendsFromCache){
+            res.status(200).json(new ApiResponse(200, friendsFromCache, 'Here are your friends !!'))
+            return ;
+        }
+
+        const dataFromDb =  await User.findById(userId)
+                                .select('friends')
+                                .populate('friends', 'name username profilePic');
+
+        if(!dataFromDb){
+            throw new ApiError(400, 'No data exists for this user !!')
+        }
+        const friendsFromDb = {...dataFromDb.friends, isFriend: true}
+        
+        await addFriendsToCache(friendsFromDb);
+
+        res.status(200).json(new ApiResponse(200, friendsFromDb, 'Here are your friends !!'))
+
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting your friends" })
     }
 }
 
@@ -358,5 +390,6 @@ export {
     searchByUsername,
     // getUserProfile,
     editProfile,
-    deleteAccountHandler
+    deleteAccountHandler,
+    getMyFriends
 }

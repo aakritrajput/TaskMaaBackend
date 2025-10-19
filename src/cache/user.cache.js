@@ -67,10 +67,6 @@ const getFriendsFromCache = async(userId) => {
     }
 }
 
-const invalidate_friends_in_cache = async(userId) => {
-
-}
-
 const checkIfMyFriend = async (userId, friendId) => {
     try {
         const key = `user:${userId}:friends`;

@@ -12,15 +12,15 @@ const groupTaskMemberSchema = new Schema({
       ref: "User", 
       required: true 
     },
-    status: { 
-      type: String, 
-      enum: ["invited", "accepted", "declined"],
-      default: "invited" 
-    },
+    // status: { 
+    //   type: String, 
+    //   enum: ["invited", "accepted", "declined"],
+    //   default: "invited" 
+    // },
     role: { 
       type: String, 
       enum: ["admin", "participant"], 
-      default: "participant" 
+      default: "participant"
     },
     completionStatus: { 
       type: String, 

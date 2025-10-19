@@ -1,4 +1,4 @@
-import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache } from "../cache/groupTask.cache.js";
+import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
 import { GroupTask } from "../models/groupTaskModels/groupTask.model.js";
 import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -28,7 +28,7 @@ const creatGroupTask = async(req, res) => {
             winners: [], // we will here define that default array and in future we will push the winners into it 
         }
 
-        for (const field of ['description', 'importance', 'status', 'type', 'dueDate']){   // here we are not adding check for winners as when we are creating then we would not be having winners on just task creation !!
+        for (const field of ['description', 'importance', 'status', 'type', 'dueDate', 'members']){   // here we are not adding check for winners as when we are creating then we would not be having winners on just task creation !!
             const value = req.body[field];  
             if (!value) continue ; // it will skip all falsy values !!
             taskData[field] = value;
@@ -36,15 +36,15 @@ const creatGroupTask = async(req, res) => {
 
         const returnedTask = await GroupTask.create(taskData)
         
-        // also lets add the creator to grouptask members collection also 
-
-        await GroupTaskMember.create({
+       
+        const docs = members.map(id => ({
             groupTaskId: returnedTask._id,
-            userId,
-            status: 'accepted',
-            role: 'admin',
-            completionStatus: 'in_progress', // default 
-        })
+            userId: id,
+            role: id.toString() === userId.toString() ? 'admin' : 'participant',
+            completionStatus: 'in_progress', // default
+        }));
+
+        await GroupTaskMember.insertMany(docs);
 
         await invalidate_groupTask_cache(userId);
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the GroupTask !!"))
@@ -70,17 +70,55 @@ const getMyGroupTasks = async(req, res) => {
         const tasks_from_db = await GroupTask.find({ // it returns task who's (due date + 7 days) is greator then today
             $expr: {
                 $gt: [
-                    { $add: ["$dueDate", 7 * 24 * 60 * 60 * 1000] }, // dueDate + 7 days
+                    {
+                      $dateAdd: {
+                        startDate: "$dueDate",
+                        unit: "day",
+                        amount: 7
+                      }
+                    },
                     today
                 ]
-            }
-        });
+            },
+            members: userId // this will automatically checks if the userId is in members array or not 
+        })
 
         if(tasks_from_db.length > 0){
             await groupTasks_to_cache(userId, tasks_from_db)
         }
         
         res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your group tasks"))
+        
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting your group tasks !!"});
+    }
+}
+
+const getPublicGroupTasks = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, 'Unauthorized request !!')
+        }
+
+        const cachedData = await publicGroupTasks_from_cache();
+        if (cachedData) {
+            res.status(200).json(new ApiResponse(200, cachedData, "Here are public group tasks"))
+            return ;
+        }
+
+        const today = new Date();
+        const tasks_from_db = await GroupTask.find({ // it returns task who's (due date + 7 days) is greator then today
+            $expr: {
+                $gt: ["$dueDate", today]
+            }
+        });
+
+        if(tasks_from_db.length > 0){
+            await publicGroupTasks_to_cache(tasks_from_db)
+        }
+        
+        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are public group tasks"))
         
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "There was some error getting your group tasks !!"});
@@ -214,61 +252,62 @@ const participateInPublicGroupTask = async(req, res) => {
     }
 }
 
-const sendInviteToConnectionForGroupTask = async(req, res) => {
-    try {
-        // here in future we will be implementing the notification sending part !!
-        const {groupTaskId} = req.params
-        const {friendId} = req.body
-        const userId = req.user._id
-        if(!groupTaskId) throw new ApiError(400, "Group taskId not provided !!");
-        if(!friendId) throw new ApiError(400, "No Friend Id provided !!");
+// const sendInviteToConnectionForGroupTask = async(req, res) => {
+//     try {
+//         // here in future we will be implementing the notification sending part !!
+//         const {groupTaskId} = req.params
+//         const {friendId} = req.body
+//         const userId = req.user._id
+//         if(!groupTaskId) throw new ApiError(400, "Group taskId not provided !!");
+//         if(!friendId) throw new ApiError(400, "No Friend Id provided !!");
 
-        const groupTask = await GroupTask.findById(groupTaskId);
+//         const groupTask = await GroupTask.findById(groupTaskId);
 
-        if(!groupTask) throw new ApiError(404, "No such task exist !!");
-        if(groupTask.creatorId !== userId) throw new ApiError(400, "You are not authorized to send invitation for this group Task");
+//         if(!groupTask) throw new ApiError(404, "No such task exist !!");
+//         if(groupTask.creatorId !== userId) throw new ApiError(400, "You are not authorized to send invitation for this group Task");
 
-        await GroupTaskMember.create({
-            groupTaskId,
-            userId,
-            status: 'invited',
-            role: 'participant',
-            completionStatus: 'in_progress',
-        })
+//         await GroupTaskMember.create({
+//             groupTaskId,
+//             userId,
+//             status: 'invited',
+//             role: 'participant',
+//             completionStatus: 'in_progress',
+//         })
 
-        res.status(200).json(200, groupMember, "Invitation for the group task successfully sent !!")
-    } catch (error) {
-       res.status(error.statusCode || 500).json({message: error.message || 'Error sending invite to your friend for this group task !!'}) 
-    }
-}
+//         res.status(200).json(200, groupMember, "Invitation for the group task successfully sent !!")
+//     } catch (error) {
+//        res.status(error.statusCode || 500).json({message: error.message || 'Error sending invite to your friend for this group task !!'}) 
+//     }
+// }
 
-const actionToInviteForGroupTask = async(req, res) => {
-    try {
-        const {groupTaskId} = req.params
-        if(!groupTaskId) throw new ApiError(400, "No groupTask Id provided !!");
-        const userId = req.user._id 
-        if(!userId) throw new ApiError(401, "Unauthorized request !!");
-        const {status} = req.body
-        if(!status) throw new ApiError(400, "Please provide your action for the invitation -- 'accept' or 'declined' ")
-        const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
-        if (!groupMember) throw new ApiError(404, "No group task found with given id or either you are not part of the groupTask !!");
+// const actionToInviteForGroupTask = async(req, res) => {
+//     try {
+//         const {groupTaskId} = req.params
+//         if(!groupTaskId) throw new ApiError(400, "No groupTask Id provided !!");
+//         const userId = req.user._id 
+//         if(!userId) throw new ApiError(401, "Unauthorized request !!");
+//         const {status} = req.body
+//         if(!status) throw new ApiError(400, "Please provide your action for the invitation -- 'accept' or 'declined' ")
+//         const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
+//         if (!groupMember) throw new ApiError(404, "No group task found with given id or either you are not part of the groupTask !!");
 
-        groupMember.status = status
-        await groupMember.save()
+//         groupMember.status = status
+//         await groupMember.save()
 
-        res.status(200).json(new ApiResponse(200, {}, `Successfully ${status} !!`))        
-    } catch (error) {
-        res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
-    }
-}
+//         res.status(200).json(new ApiResponse(200, {}, `Successfully ${status} !!`))        
+//     } catch (error) {
+//         res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
+//     }
+// }
 
 export {
     creatGroupTask,
     getMyGroupTasks,
+    getPublicGroupTasks,
     deleteGroupTask,
     editGroupTask,
     markCompleted,
     participateInPublicGroupTask,
-    sendInviteToConnectionForGroupTask,
-    actionToInviteForGroupTask
+ //   sendInviteToConnectionForGroupTask,
+ //   actionToInviteForGroupTask
 }

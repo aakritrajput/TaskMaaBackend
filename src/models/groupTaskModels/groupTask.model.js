@@ -33,9 +33,18 @@ const groupTaskSchema = new Schema({
       enum: ["ongoing", "completed"], 
       default: "ongoing"
     },
+    members: {
+      type:  [
+        { 
+            type: Schema.Types.ObjectId, 
+            ref: "User" 
+        }
+      ],
+      default: [] // we need to make sure that while creating the group task we need to give users list here including creator
+    },
     winners: [
       { 
-          type: Schema.Types.ObjectId, 
+          type: Schema.Types.ObjectId,
           ref: "User" 
       }
     ], // ordered list of userIds -- as listed according to the ranks

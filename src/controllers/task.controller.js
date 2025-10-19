@@ -182,7 +182,6 @@ const getTodaysTasks = async(req, res) => {
         if(tasks_from_db.length > 0){
             await cache_todays_tasks(userId, tasks_from_db)
         }
-        console.log('tasks from db: ', tasks_from_db)
         res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are your today's tasks"))
         
     } catch (error) {

@@ -19,7 +19,7 @@ const getMyPerformance = async(req, res) => {
         const dataFromCache = await performanceFromCache(userId);
 
         if(dataFromCache){ // return cached data only if the last streak was today !!
-            const cacheLastDay = new Date(dataFromCache.lastStreakOn)
+            const cacheLastDay = new Date(dataFromCache.lastOnline)
             cacheLastDay.setHours(0,0,0,0);
     
             const cacheDayGapMs = today - cacheLastDay ;
@@ -31,9 +31,9 @@ const getMyPerformance = async(req, res) => {
             }
         }
 
-        const dataFromDb = await User.findById(userId).select('currentStreak longestStreak overallScore weeklyProgress lastStreakOn badges').lean()
+        const dataFromDb = await User.findById(userId).select('currentStreak longestStreak overallScore weeklyProgress lastOnline lastStreakOn badges').lean()
         
-        const last = new Date(dataFromDb.lastStreakOn);
+        const last =  dataFromDb.lastOnline ? new Date(dataFromDb.lastOnline) : new Date(Date.now() - 24 * 60 * 60 * 1000);
         last.setHours(0, 0, 0, 0);
         
         const gapMs = today - last; // difference in milliseconds
@@ -44,7 +44,7 @@ const getMyPerformance = async(req, res) => {
                 dataFromDb.weeklyProgress.push(0);       // adding zero for missing day
                 if (dataFromDb.weeklyProgress.length > 7) dataFromDb.weeklyProgress.shift(); // will keep only last 7 entries
             }
-            await User.findByIdAndUpdate(userId, {weeklyProgress: dataFromDb.weeklyProgress}) // we are updating the db too !! --- and here we are making extra db call because we don't want that even for whole day when we are reading db we read it without lean() and lean() does not provide .save() therefore here this way of update !!
+            await User.findByIdAndUpdate(userId, {weeklyProgress: dataFromDb.weeklyProgress, lastOnline: new Date().toISOString()}) // we are updating the db too !! --- and here we are making extra db call because we don't want that even for whole day when we are reading db we read it without lean() and lean() does not provide .save() therefore here this way of update !!
         }
         
         await performanceToCache(userId, dataFromDb)

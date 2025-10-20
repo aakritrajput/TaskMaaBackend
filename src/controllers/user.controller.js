@@ -365,7 +365,7 @@ const getMyFriends = async(req, res) => {
 
         const dataFromDb =  await User.findById(userId)
                                 .select('friends')
-                                .populate('friends', 'name username profilePic');
+                                .populate('friends', 'name username profilePicture');
 
         if(!dataFromDb){
             throw new ApiError(400, 'No data exists for this user !!')
@@ -381,6 +381,23 @@ const getMyFriends = async(req, res) => {
     }
 }
 
+const logout = async(req, res) => {
+    try {
+        const options = {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
+        }
+        res
+        .status(200)
+        .clearCookie('accessToken', options)
+        .cookie('refreshToken', options)
+        .json(new ApiResponse(200, safeUser, "Successfully logged out !!"))
+    } catch (error) {
+         res.status(error.statusCode || 500).json({message: error.message || "There was some error logging you out !!" })
+    }
+}
+
 export {
     register, 
     login,
@@ -391,5 +408,6 @@ export {
     // getUserProfile,
     editProfile,
     deleteAccountHandler,
-    getMyFriends
+    getMyFriends,
+    logout
 }

@@ -1,6 +1,6 @@
 import { redis } from "../db/redis.js";
 
-USER_PREFIX = 'user:'
+const USER_PREFIX = 'user:'
 
 const groupTasks_from_cache = async(userId) => {
     try {

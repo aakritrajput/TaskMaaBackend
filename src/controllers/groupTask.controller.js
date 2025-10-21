@@ -1,4 +1,4 @@
-import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
+import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, invalidate_publicGroupTask_cache, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
 import { GroupTask } from "../models/groupTaskModels/groupTask.model.js";
 import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 
 // Note: This should be ensured on frontend that if the groupTaskMember's status is 'accepted' then only he is supposed to make requests to toggle status completion and other description also !!!
 
-const creatGroupTask = async(req, res) => {
+const createGroupTask = async(req, res) => {
      try {
         const {title, dueDate} = req.body
         if (title.trim().length == 0){
@@ -34,19 +34,23 @@ const creatGroupTask = async(req, res) => {
             taskData[field] = value;
         }
 
+        console.log('data to create new group task: ', taskData)
+
         const returnedTask = await GroupTask.create(taskData)
-        
        
-        const docs = members.map(id => ({
+        const docs = returnedTask.members.map(id => ({
             groupTaskId: returnedTask._id,
             userId: id,
             role: id.toString() === userId.toString() ? 'admin' : 'participant',
-            completionStatus: 'in_progress', // default
+            completionStatus: 'inProgress', // default
         }));
 
         await GroupTaskMember.insertMany(docs);
 
         await invalidate_groupTask_cache(userId);
+        if(returnedTask.type == 'public'){
+            invalidate_publicGroupTask_cache()
+        }
         res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Created the GroupTask !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
@@ -81,7 +85,7 @@ const getMyGroupTasks = async(req, res) => {
                 ]
             },
             members: userId // this will automatically checks if the userId is in members array or not 
-        })
+        }).sort({ createdAt: -1 });
 
         if(tasks_from_db.length > 0){
             await groupTasks_to_cache(userId, tasks_from_db)
@@ -103,22 +107,31 @@ const getPublicGroupTasks = async(req, res) => {
 
         const cachedData = await publicGroupTasks_from_cache();
         if (cachedData) {
-            res.status(200).json(new ApiResponse(200, cachedData, "Here are public group tasks"))
+            console.log('public group tasks given from cache !!')
+            const myCachedPublicTasks = cachedData.filter(task => !task.members.includes(userId))
+            res.status(200).json(new ApiResponse(200, myCachedPublicTasks, "Here are public group tasks"))
             return ;
         }
 
+        console.log('public group task runs !!')
+
         const today = new Date();
-        const tasks_from_db = await GroupTask.find({ // it returns task who's (due date + 7 days) is greator then today
-            $expr: {
-                $gt: ["$dueDate", today]
-            }
-        });
+        const tasks_from_db = await GroupTask.find({
+          $expr: {
+            $gt: ["$dueDate", today] // tasks whose dueDate > today
+          },
+          type: "public",
+        }).sort({ createdAt: -1 });  // latest first
 
         if(tasks_from_db.length > 0){
             await publicGroupTasks_to_cache(tasks_from_db)
         }
+
+        console.log('pub tasks from db: ', tasks_from_db)
+
+        const myPublicTasks = tasks_from_db.filter(task => !task.members.includes(userId)) // this will only send the taskk in which user till now has not participated and are public
         
-        res.status(200).json(new ApiResponse(200, tasks_from_db, "Here are public group tasks"))
+        res.status(200).json(new ApiResponse(200, myPublicTasks, "Here are public group tasks"))
         
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "There was some error getting your group tasks !!"});
@@ -301,7 +314,7 @@ const participateInPublicGroupTask = async(req, res) => {
 // }
 
 export {
-    creatGroupTask,
+    createGroupTask,
     getMyGroupTasks,
     getPublicGroupTasks,
     deleteGroupTask,

@@ -365,12 +365,12 @@ const getMyFriends = async(req, res) => {
 
         const dataFromDb =  await User.findById(userId)
                                 .select('friends')
-                                .populate('friends', 'name username profilePicture');
+                                .populate('friends', 'name username profilePicture').lean();
 
         if(!dataFromDb){
             throw new ApiError(400, 'No data exists for this user !!')
         }
-        const friendsFromDb = {...dataFromDb.friends, isFriend: true}
+        const friendsFromDb = dataFromDb.friends.map(friend => ({...friend, isFriend: true}))
         
         await addFriendsToCache(friendsFromDb);
 

@@ -48,7 +48,7 @@ const profileToCache = async(userId, data, ttl=300) => { // for 5 minutes
 const addFriendsToCache = async(userId, data, ttl=600) => {  // with these we can add a single friend or array of friends to cache !!
     try {
         const key = `user:${userId}:friends`
-        const response = await redis.set(key, JSON.stringify(data), 'EX',  )
+        const response = await redis.set(key, JSON.stringify(data), 'EX',  ttl)
         return response;
     } catch (error) {
         console.error(error)

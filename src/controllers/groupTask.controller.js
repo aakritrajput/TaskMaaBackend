@@ -66,6 +66,7 @@ const getMyGroupTasks = async(req, res) => {
 
         const cachedData = await groupTasks_from_cache(userId)
         if (cachedData) {
+            console.log('tasks given from cache !!')
             res.status(200).json(new ApiResponse(200, cachedData, "Here are your group tasks"))
             return ;
         }
@@ -110,6 +111,7 @@ const getMembersOfGroupTask = async(req, res) => {
 
         if(membersFromCache) {
             res.status(200).json(new ApiResponse(200, membersFromCache, 'Here are group task members !!'))
+            return ;
         }
 
         const membersFromDb = await GroupTask.findById(id, {
@@ -148,7 +150,6 @@ const getPublicGroupTasks = async(req, res) => {
 
         const cachedData = await publicGroupTasks_from_cache();
         if (cachedData) {
-            console.log('public group tasks given from cache !!')
             const myCachedPublicTasks = cachedData.filter(task => !task.members.includes(userId))
             res.status(200).json(new ApiResponse(200, myCachedPublicTasks, "Here are public group tasks"))
             return ;
@@ -185,6 +186,7 @@ const deleteGroupTask = async(req, res) => {
         if (!userId){
             throw new ApiError(401, 'Unauthorized request !!')
         }
+
         const {groupTaskId} = req.params
         if (!groupTaskId){
             throw new ApiError(400, 'Group task Id not provided -- which is required !!')
@@ -193,14 +195,18 @@ const deleteGroupTask = async(req, res) => {
             groupTaskId: groupTaskId,
             userId,
         })
-        if(groupMember.length == 0 || groupMember.role == 'participant'){
+        console.log('group member: ', groupMember)
+        if(groupMember.length == 0 || groupMember[0].role == 'participant'){
             throw new ApiError(401, "You are not authorized to delete this task !!")
         }
 
-        const deletedGroupTask = await GroupTask.findByIdAndDelete(groupTaskId)
-        await GroupTaskMember.findOneAndDelete({groupTaskId})
-        await invalidate_groupTask_cache(groupTaskId)
-        res.status(200).json(new ApiResponse(200, {}, 'GroupTask Successfully deleted !!'))
+        const deletedTask = await GroupTask.findByIdAndDelete(groupTaskId)
+        await GroupTaskMember.deleteMany({groupTaskId})
+        if(deletedTask.type == 'public'){
+            await invalidate_publicGroupTask_cache();
+        }
+        await invalidate_groupTask_cache(userId)
+        res.status(200).json(new ApiResponse(200, 'OK', 'GroupTask Successfully deleted !!'))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error Deleting your group task !!'});
     }

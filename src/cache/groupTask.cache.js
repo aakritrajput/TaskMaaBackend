@@ -24,6 +24,18 @@ const groupTasks_to_cache = async(userId, data, ttl=7200) => {
     }
 }
 
+
+const invalidate_groupTask_cache = async(userId) => {
+    try {
+        const key = `${USER_PREFIX}${userId}:groupTasks`;
+        const response = await redis.del(key)
+        return response ;
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
 const publicGroupTasks_from_cache = async() => {
     try {
         const key = `${USER_PREFIX}:publicGroupTasks`;
@@ -49,17 +61,6 @@ const publicGroupTasks_to_cache = async(data) => {
 const invalidate_publicGroupTask_cache = async() => {
     try {
          const key = `${USER_PREFIX}:publicGroupTasks`;
-        const response = await redis.del(key)
-        return response ;
-    } catch (error) {
-        console.error(error)
-        return null;
-    }
-}
-
-const invalidate_groupTask_cache = async(userId) => {
-    try {
-        const key = `${USER_PREFIX}${userId}:groupTasks`;
         const response = await redis.del(key)
         return response ;
     } catch (error) {

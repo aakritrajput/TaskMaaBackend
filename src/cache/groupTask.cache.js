@@ -68,11 +68,47 @@ const invalidate_groupTask_cache = async(userId) => {
     }
 }
 
+const groupTaskMembersToCache = async(taskId, data, ttl = 300) => {
+    try {
+        const key = `groupTask:members:${taskId}`;
+        const response = await redis.set(key, JSON.stringify(data), 'EX', ttl)
+        return response ;
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
+const groupTaskMembersFromCache = async(taskId) => {
+    try {
+        const key = `groupTask:members:${taskId}`;
+        const groupTaskMembers = await redis.get(key)
+        return groupTaskMembers ? JSON.parse(groupTaskMembers) : null;
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
+const invalidateGroupTaskMembers = async(taskId) => {
+    try {
+        const key = `groupTask:members:${taskId}`;
+        const response = await redis.del(key)
+        return response ;
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
 export {
     groupTasks_from_cache,
     groupTasks_to_cache,
     invalidate_groupTask_cache,
     publicGroupTasks_from_cache,
     publicGroupTasks_to_cache,
-    invalidate_publicGroupTask_cache
+    invalidate_publicGroupTask_cache,
+    groupTaskMembersToCache,
+    groupTaskMembersFromCache,
+    invalidateGroupTaskMembers,
 }

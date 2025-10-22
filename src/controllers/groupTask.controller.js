@@ -1,4 +1,4 @@
-import { groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, invalidate_publicGroupTask_cache, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
+import { groupTaskMembersFromCache, groupTaskMembersToCache, groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, invalidate_publicGroupTask_cache, invalidateGroupTaskMembers, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
 import { GroupTask } from "../models/groupTaskModels/groupTask.model.js";
 import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -98,6 +98,47 @@ const getMyGroupTasks = async(req, res) => {
     }
 }
 
+const getMembersOfGroupTask = async(req, res) => {
+    try {
+        const {id} = req.params
+
+        if (!id) {
+            throw new ApiError(400, "Please provide a valid task Id")
+        }
+        
+        const membersFromCache = await groupTaskMembersFromCache(id)
+
+        if(membersFromCache) {
+            res.status(200).json(new ApiResponse(200, membersFromCache, 'Here are group task members !!'))
+        }
+
+        const membersFromDb = await GroupTask.findById(id, {
+            members: 1,
+            _id: 0,
+        }).populate('members', '_id name username profilePicture').lean()
+
+        if(!membersFromDb){ // this is if no such task with given id 
+            throw new ApiError(400, 'No such group Task with given id !!')
+        }
+
+        const finalData = membersFromDb?.members || [];
+
+        if (finalData.length > 0){  // we are still pushing it to cache as some other member can use this fetched data 
+            await groupTaskMembersToCache(id, finalData)
+        }
+
+        const isUserAllowed = finalData.some(member => member._id == req.user._id) // this will be only true if the user requesting the data is actually a member
+
+        if(!isUserAllowed){
+            throw new ApiError(403, "You are not the member in the group task - hence the access not allowed !!")
+        }
+
+        res.status(200).json(new ApiResponse(200, finalData, 'Here are group task members !!'))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "There was some error getting members of group task!!"});
+    }
+}
+
 const getPublicGroupTasks = async(req, res) => {
     try {
         const userId = req.user._id
@@ -179,7 +220,9 @@ const editGroupTask = async(req, res) => {
 
         const groupTask = await GroupTask.findById(groupTaskId)
 
-        if (groupTask.creatorId !== userId){
+        console.log('groupTask: ', groupTask, 'userId: ', userId)
+
+        if (groupTask.creatorId.toString() !== userId){
             throw new ApiError(401, "You are not authorized to update this task !!")
         }
 
@@ -197,18 +240,21 @@ const editGroupTask = async(req, res) => {
         groupTask.dueDate = new Date(dueDate); // Ensure proper Date type
         
         // Dynamically updating optional fields
-        for (const field of ['description', 'importance', 'status', 'type']) {
-          const value = req.body[field];
-          if (!value) continue; // Skip falsy values
-          groupTask[field] = value;
+        for (const field of ['description', 'importance', 'status', 'type', 'dueDate', 'members']){   // here we are not adding check for winners as when we are creating then we would not be having winners on just task creation !!
+            const value = req.body[field];  
+            if (!value) continue ; // it will skip all falsy values !!
+            groupTask[field] = value;
         }
+
+        console.log('edit runs !!')
         
         // Save the updated document
         await groupTask.save();
 
         await invalidate_groupTask_cache(userId);
+        await invalidateGroupTaskMembers(groupTaskId);
 
-        res.status(201).json(new ApiResponse(201, returnedTask, "Successfully Updated your GroupTask !!"))
+        res.status(201).json(new ApiResponse(201, "Ok", "Successfully Updated your GroupTask !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error adding your task !!'})
     }
@@ -321,6 +367,7 @@ export {
     editGroupTask,
     markCompleted,
     participateInPublicGroupTask,
+    getMembersOfGroupTask,
  //   sendInviteToConnectionForGroupTask,
  //   actionToInviteForGroupTask
 }

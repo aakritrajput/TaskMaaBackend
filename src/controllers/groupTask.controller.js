@@ -1,8 +1,9 @@
-import { groupTaskMembersFromCache, groupTaskMembersToCache, groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, invalidate_publicGroupTask_cache, invalidateGroupTaskMembers, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
+import { groupTaskMembersFromCache, groupTaskMembersToCache, groupTasks_from_cache, groupTasks_to_cache, invalidate_groupTask_cache, invalidate_groupTask_cache_of_multiple_users, invalidate_publicGroupTask_cache, invalidateGroupTaskMembers, publicGroupTasks_from_cache, publicGroupTasks_to_cache } from "../cache/groupTask.cache.js";
 import { GroupTask } from "../models/groupTaskModels/groupTask.model.js";
 import { GroupTaskMember } from "../models/groupTaskModels/groupTaskMember.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { updateOverAllScore } from "../workers/overAllScoreWorker.js";
 
 // Note: This should be ensured on frontend that if the groupTaskMember's status is 'accepted' then only he is supposed to make requests to toggle status completion and other description also !!!
 
@@ -34,8 +35,6 @@ const createGroupTask = async(req, res) => {
             taskData[field] = value;
         }
 
-        console.log('data to create new group task: ', taskData)
-
         const returnedTask = await GroupTask.create(taskData)
        
         const docs = returnedTask.members.map(id => ({
@@ -47,7 +46,7 @@ const createGroupTask = async(req, res) => {
 
         await GroupTaskMember.insertMany(docs);
 
-        await invalidate_groupTask_cache(userId);
+        await invalidate_groupTask_cache_of_multiple_users(returnedTask.members)
         if(returnedTask.type == 'public'){
             invalidate_publicGroupTask_cache()
         }
@@ -66,7 +65,6 @@ const getMyGroupTasks = async(req, res) => {
 
         const cachedData = await groupTasks_from_cache(userId)
         if (cachedData) {
-            console.log('tasks given from cache !!')
             res.status(200).json(new ApiResponse(200, cachedData, "Here are your group tasks"))
             return ;
         }
@@ -155,21 +153,18 @@ const getPublicGroupTasks = async(req, res) => {
             return ;
         }
 
-        console.log('public group task runs !!')
-
         const today = new Date();
         const tasks_from_db = await GroupTask.find({
           $expr: {
             $gt: ["$dueDate", today] // tasks whose dueDate > today
           },
           type: "public",
+          status: "ongoing",
         }).sort({ createdAt: -1 });  // latest first
 
         if(tasks_from_db.length > 0){
             await publicGroupTasks_to_cache(tasks_from_db)
         }
-
-        console.log('pub tasks from db: ', tasks_from_db)
 
         const myPublicTasks = tasks_from_db.filter(task => !task.members.includes(userId)) // this will only send the taskk in which user till now has not participated and are public
         
@@ -195,17 +190,17 @@ const deleteGroupTask = async(req, res) => {
             groupTaskId: groupTaskId,
             userId,
         })
-        console.log('group member: ', groupMember)
         if(groupMember.length == 0 || groupMember[0].role == 'participant'){
             throw new ApiError(401, "You are not authorized to delete this task !!")
         }
 
         const deletedTask = await GroupTask.findByIdAndDelete(groupTaskId)
         await GroupTaskMember.deleteMany({groupTaskId})
+
         if(deletedTask.type == 'public'){
             await invalidate_publicGroupTask_cache();
         }
-        await invalidate_groupTask_cache(userId)
+        await invalidate_groupTask_cache_of_multiple_users(deletedTask.members)
         res.status(200).json(new ApiResponse(200, 'OK', 'GroupTask Successfully deleted !!'))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error Deleting your group task !!'});
@@ -226,7 +221,9 @@ const editGroupTask = async(req, res) => {
 
         const groupTask = await GroupTask.findById(groupTaskId)
 
-        console.log('groupTask: ', groupTask, 'userId: ', userId)
+        if (groupTask.status == 'completed') {
+            throw new ApiError(403, "Group task is already completed, Editing after completion is not allowed !!")
+        }
 
         if (groupTask.creatorId.toString() !== userId){
             throw new ApiError(401, "You are not authorized to update this task !!")
@@ -252,8 +249,6 @@ const editGroupTask = async(req, res) => {
             groupTask[field] = value;
         }
 
-        console.log('edit runs !!')
-        
         // Save the updated document
         await groupTask.save();
 
@@ -275,20 +270,32 @@ const markCompleted = async(req, res) => {
 
         const groupMember = await GroupTaskMember.findOne({groupTaskId, userId})
         if (!groupMember) throw new ApiError(401, "You are not authorized to do this !!");
-        if(groupMember.status != 'accepted'){
-            throw new ApiError(400, "You have not accepted the group invitation -- so cannot make any completions !!")
-        }
         const groupTask = await GroupTask.findById(groupTaskId)
 
         groupTask.winners.push(userId)
         const rank = groupTask.winners.length || 1 ;
 
-
         groupMember.completionStatus = 'completed';
         groupMember.rank = rank ;
         groupMember.completedAt = new Date()
 
-        await groupMember.save()
+        if(groupTask.members.length > 3 && rank < 4 && rank >= 1){
+            if(rank == 1){
+                updateOverAllScore(userId, 'firstInGroupTask')
+            }
+            else if(rank == 2){
+                updateOverAllScore(userId, 'secondInGroupTask')
+            }
+            else if(rank == 3){
+                updateOverAllScore(userId, 'thirdInGroupTask')
+            }
+        }else{
+            updateOverAllScore(userId, 'completedGroupTask')
+        }
+
+        await groupMember.save();
+        await groupTask.save();
+        await invalidate_groupTask_cache_of_multiple_users(groupTask.members)
         res.status(200).json(new ApiResponse(200, groupMember, "Successfully marked Completed !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error toggling your completion for this groupTask !!'})
@@ -302,18 +309,60 @@ const participateInPublicGroupTask = async(req, res) => {
         const groupTask = await GroupTask.findById(groupTaskId)
         if(!groupTask) throw new ApiError(404, "No such task is there !!");
         if(groupTask.type == 'private') throw new ApiError(401, "Not permitted to participate in this group task -- It is private !!");
-
+        if(groupTask.status == 'completed') throw new ApiError(400, "Group task is already completed, now you cannot participate in it !!")
+        if(new Date(groupTask.dueDate) <= new Date()) throw new ApiError(400, "Due date of the public task is already reached, so cannot participate in it !!")
+        
         const groupMember = await GroupTaskMember.create({
             groupTaskId,
             userId,
-            status: 'accepted',
             role: 'participant',
-            completionStatus: 'in_progress',
+            completionStatus: 'inProgress',
         })
+
+        groupTask.members.push(userId)
+
+        await groupTask.save();
+
+        updateOverAllScore(userId, 'participatedInPublicGroupTask')
+
+        await invalidate_groupTask_cache(userId)
+        await invalidate_publicGroupTask_cache()
 
         res.status(200).json(200, groupMember, "Successfully entered in the group task !!")
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'There was some error in participating in this groupTask !!'})
+    }
+}
+
+const toggleGroupTaskStatus = async(req, res) => {
+    try {
+
+        const {groupTaskId} = req.params;
+        if(!groupTaskId) {
+            throw new ApiError(400, "Please provide a valid group task id !!")
+        }
+
+        const userId = req.user._id
+        
+        const groupTask = await GroupTask.findById(groupTaskId);
+
+        if (groupTask.creatorId.toString() !== userId){
+            throw new ApiError(403, "You are not permitted to perform this action as you are not the admin !!")
+        }
+
+        groupTask.status = 'completed'
+
+        await groupTask.save();
+
+        if(groupTask.type == 'public'){
+            await invalidate_publicGroupTask_cache()
+        }
+
+        await invalidate_groupTask_cache(userId);
+
+        res.status(200).json(new ApiResponse(200, 'OK', 'Successfully toggled your group task status !!'))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'There was some error in toggling your groupTask !!'})
     }
 }
 
@@ -374,6 +423,7 @@ export {
     markCompleted,
     participateInPublicGroupTask,
     getMembersOfGroupTask,
+    toggleGroupTaskStatus,
  //   sendInviteToConnectionForGroupTask,
  //   actionToInviteForGroupTask
 }

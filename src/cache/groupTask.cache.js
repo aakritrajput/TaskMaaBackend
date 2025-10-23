@@ -36,6 +36,17 @@ const invalidate_groupTask_cache = async(userId) => {
     }
 }
 
+const invalidate_groupTask_cache_of_multiple_users = async(userIds) => {
+    try {
+        const response = await redis.del(...userIds.map(userId => `${USER_PREFIX}${userId}:groupTasks`))
+        console.log('response from cache: ', response)
+        return response ;
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
 const publicGroupTasks_from_cache = async() => {
     try {
         const key = `${USER_PREFIX}:publicGroupTasks`;
@@ -112,4 +123,5 @@ export {
     groupTaskMembersToCache,
     groupTaskMembersFromCache,
     invalidateGroupTaskMembers,
+    invalidate_groupTask_cache_of_multiple_users
 }

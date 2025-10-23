@@ -9,6 +9,11 @@ const actionScores = {
     markedComplete: { plus: 5 },
     deletedCompleted: { minus: 5 },
     markedUncomplete: { minus: 5 },
+    completedGroupTask: {plus: 5},
+    firstInGroupTask: {plus: 30},
+    secondInGroupTask: {plus: 20},
+    thirdInGroupTask: {plus: 10},
+    participatedInPublicGroupTask: {plus: 5},
     gotBatch: { plus: 25 },
     streak5: { plus: 10 },
     streak10: { plus: 20 },
@@ -29,7 +34,7 @@ export function updateWeeklyScore(userId, data){
 
 export function updateOverAllScore(userId, action) {
     
-    if (!actionScores[action]) return;  
+    if (!actionScores[action]) return;
 
     const scoreData = actionScores[action];
     const currentScore = collectedOverallScores.get(userId) || 0;   

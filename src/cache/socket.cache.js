@@ -11,7 +11,6 @@ const socketIdForUser = async(userId, socketId) => {
     }
 }
 
-
 const invalidateSocketIdForUser = async(userId) => {
     try {
         const key = `user:${userId}:socket`
@@ -127,6 +126,40 @@ const addGroupChatMembersToCache = async(chatId, members) => {
     }
 }
 
+const storeChatIdsOfUser = async(userId, chatIds) => {
+    try {
+        const key = `user:${userId}:chatIds`
+        const idsToAdd = Array.isArray(chatIds) ? chatIds : [chatIds];
+        const response = await redis.sadd(key, ...idsToAdd);
+        return response;
+    } catch (error) {
+        console.error('Error storing chat id in users chatIds ', error)
+        return null;
+    }
+}
+
+const deleteChatIdOfUser = async(userId, chatId) => {
+    try {
+        const key = `user:${userId}:chatIds`
+        const response = await redis.srem(key, chatId)
+        return response;
+    } catch (error) {
+        console.error('Error deleting chat id from users chatIds ', error)
+        return null;
+    }
+}
+
+const getChatIdsOfUser = async(userId) => {
+    try {
+        const key = `user:${userId}:chatIds`
+        const response = await redis.smembers(key)
+        return response;
+    } catch (error) {
+        console.error('Error getting chatids from cache ! ', error)
+        return null;
+    }
+}
+
 export {
     socketIdForUser,
     invalidateSocketIdForUser,
@@ -137,5 +170,8 @@ export {
     storeOfflineMessageForGroups,
     getUsersOfflineMessages,
     getGroupChatMembers,
-    addGroupChatMembersToCache
+    addGroupChatMembersToCache,
+    storeChatIdsOfUser,
+    deleteChatIdOfUser,
+    getChatIdsOfUser
 }

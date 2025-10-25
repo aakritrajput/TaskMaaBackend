@@ -156,9 +156,29 @@ const getChatIdsOfUser = async(userId) => {
         return response;
     } catch (error) {
         console.error('Error getting chatids from cache ! ', error)
-        return null;
+        return [];
     }
 }
+
+const addChatIdToMultipleUsers = async (userIds, chatId) => {
+  try {
+    const pipeline = redis.multi();
+
+    userIds.forEach(userId => {
+      const key = `user:${userId}:chatIds`;
+      pipeline.sadd(key, chatId);
+    });
+
+    // Execute all SADD commands together
+    const results = await pipeline.exec();
+
+    return results; // this will be the array of responses per command
+  } catch (error) {
+    console.error('Error adding chatId to multiple users:', error);
+    return null;
+  }
+};
+
 
 export {
     socketIdForUser,
@@ -173,5 +193,6 @@ export {
     addGroupChatMembersToCache,
     storeChatIdsOfUser,
     deleteChatIdOfUser,
-    getChatIdsOfUser
+    getChatIdsOfUser,
+    addChatIdToMultipleUsers
 }

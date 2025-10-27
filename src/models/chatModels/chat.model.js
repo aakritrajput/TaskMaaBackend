@@ -7,7 +7,6 @@ const chatSchema = new Schema({
         default: false,
     },
 
-    // users in the chat
     users: [
         {
             user: {
@@ -25,10 +24,9 @@ const chatSchema = new Schema({
 
     // Last message in the chat
     lastMessage: {
-        text: String,
-        senderId: String,
-        timestamp: String,
-        default: '',
+        text: { type: String, default: '' },
+        senderId: { type: String, default: '' },
+        timestamp: { type: String, default: '' },
     },
 
     // Only for group chats
@@ -38,4 +36,4 @@ const chatSchema = new Schema({
     },
 }, {timestamps: true})
 
-export const Chat = mongoose.Model("Chat", chatSchema)
+export const Chat = mongoose.model("Chat", chatSchema)

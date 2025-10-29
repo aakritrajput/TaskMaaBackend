@@ -1,18 +1,22 @@
+import { invalidateMessagesInChat } from "../cache/socket.cache.js";
 import { redis } from "../db/redis";
 import { Chat } from "../models/chatModels/chat.model.js";
 import { Message } from "../models/chatModels/message.model.js";
 
 async function processMessageQueue() {
     const batch = [];
+    const keysSet = new Set();
     for (let i = 0; i<50; i++){
         const msg = await redis.rpop('message_queue');
         if (!msg) break;
+        keysSet.add(msg.chatId)
         batch.push(JSON.parse(msg));
     }
 
     if(batch.length) {
         // saving message to message model 
         await Message.insertMany(batch);
+        await invalidateMessagesInChat([...keysSet])
 
         // saving basic info in chat model !!
 

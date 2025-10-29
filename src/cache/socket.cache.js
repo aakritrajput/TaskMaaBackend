@@ -179,6 +179,38 @@ const addChatIdToMultipleUsers = async (userIds, chatId) => {
   }
 };
 
+const messagesFromCache = async(chatId) => {
+    try {
+        const key = `chat:messages:${chatId}`
+        const response = await redis.get(key)
+        return response ? JSON.parse(response) : null ; 
+    } catch (error) {
+        console.error('Error getting messages from cache ! ', error)
+        return null;
+    }
+}
+
+const messagesToCache = async(chatId, messages, ttl=300) => {
+    try {
+        const key = `chat:messages:${chatId}`
+        const response = await redis.set(key, JSON.stringify(messages), 'EX', ttl)
+        return response; 
+    } catch (error) {
+        console.error('Error setting messages in cache ! ', error)
+        return null;
+    }
+}
+
+const invalidateMessagesInChat = async(chatIds) => {
+    try {
+        const keys = Array.isArray(chatIds) ? chatIds.map(id => `chat:messages:${id}`) : [`chat:messages:${chatIds}`];
+        const response = await redis.del(...keys)
+        return response; 
+    } catch (error) {
+        console.error('Error deleting messages from cache ! ', error)
+        return null;
+    }
+}
 
 export {
     socketIdForUser,
@@ -194,5 +226,8 @@ export {
     storeChatIdsOfUser,
     deleteChatIdOfUser,
     getChatIdsOfUser,
-    addChatIdToMultipleUsers
+    addChatIdToMultipleUsers,
+    messagesFromCache,
+    messagesToCache,
+    invalidateMessagesInChat,
 }

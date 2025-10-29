@@ -1,6 +1,7 @@
-import { addChatIdToMultipleUsers, addGroupChatMembersToCache, getChatIdsOfUser, storeChatIdsOfUser } from "../cache/socket.cache.js";
+import { addChatIdToMultipleUsers, messagesToCache, messagesFromCache, addGroupChatMembersToCache, getChatIdsOfUser, storeChatIdsOfUser } from "../cache/socket.cache.js";
 import { checkIfMyFriend, getFriendsFromCache } from "../cache/user.cache.js";
 import { Chat } from "../models/chatModels/chat.model.js";
+import { Message } from "../models/chatModels/message.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
@@ -91,8 +92,30 @@ const getChatInterface = async(req, res) => {
     }
 }
 
+const getMessagesOfChat = async(req, res) => { // if we in future want scale then we will implement pagination here
+    try {
+        const {chatId} = req.params
+        if(!chatId){
+            throw new ApiError(400, "Please provide a valid chat id !!")
+        }
+
+        const MessagesFromCache = await messagesFromCache(chatId)
+
+        const messagesFromDb = await Message.find({
+            chatId
+        })
+
+        await messagesToCache(chatId, messagesFromDb)
+
+        res.status(200).json(new ApiResponse(200, messagesFromDb, "Here are your chats !!"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || 'Oops.. There was some Error getting messages of this chat !!'})
+    }
+}
+
 export {
     createOneToOneChat,
     createGroupChat,
     getChatInterface,
+    getMessagesOfChat,
 }

@@ -16,6 +16,7 @@ export default function chatSocket(server){
         try {
             console.log('User connected: ', socket.id);
             const userId = socket.handshake.query.userId
+            console.log('Got the user id: ', userId)
             if (!userId) return ;
 
             // now first if there were any offline messages for this user then we will emit that immediately 
@@ -55,15 +56,12 @@ export default function chatSocket(server){
                     // sending message to reciever !!
                     io.to(receiverSocketId).emit('recieve-message', message);
 
-                    // Ack sender 
-                    socket.emit('message_sent', {tempId: data.tempId, message});
-
                 } else {  // for offline ones store them in cache !!
                     console.log(`User ${recieverId} is offline. Storing message for later delivery.`);
                     await storeOfflineMessage(message);
                 }
 
-                socket.emit('sent', )
+                socket.emit('message_sent', message)
             })
 
             // ----------- Group chats ---------------

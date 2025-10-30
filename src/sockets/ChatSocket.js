@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages, getGroupChatMembers, storeOfflineMessageForGroups } from "../cache/socket.cache.js";
+import { getSocketIdOfUser, invalidateSocketIdForUser, socketIdForUser, messageToCacheQueue, storeOfflineMessage, updateUnreadCount, getUsersOfflineMessages, getGroupChatMembers, storeOfflineMessageForGroups, messageStatusUpdateToCacheQueue } from "../cache/socket.cache.js";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function chatSocket(server){
@@ -30,6 +30,19 @@ export default function chatSocket(server){
         
             onlineUsers.set(userId, socket.id) // for quickly looking up socket id's in memory 
             await socketIdForUser(userId, socket.id); // if users not in the memory of the same server then we can query redis for the users socketIDs
+
+            socket.on('isOnline', async({recieverId}) => {
+                let receiverSocketId = onlineUsers.get(recieverId)
+                if(!receiverSocketId){
+                    receiverSocketId = await getSocketIdOfUser(recieverId);
+                }
+
+                if(receiverSocketId){
+                    socket.emit('isOnlineResponse', {recieverId, isOnline: true})
+                }else{
+                    socket.emit('isOnlineResponse', {recieverId, isOnline: false})
+                }
+            })
 
             // ----------- One to One chats ---------------
 
@@ -113,17 +126,35 @@ export default function chatSocket(server){
             });
 
 
-
             // ---------- For both - group and one to one messages ----------
 
-            socket.on('delivered_ack', ({messageId, chatId, senderId}) => {
-                io.to(senderId).emit('message_delivered', {messageId, chatId})
+            socket.on('delivered_ack', async({messageId, chatId, senderId}) => {
+                let senderSocket = onlineUsers.get(senderId)
+                if(!senderSocket){
+                    senderSocket = await getSocketIdOfUser(senderId);
+                }
+                if(senderSocket){
+                    io.to(senderSocket).emit('message_delivered', {messageId, chatId})
+                }
+                await messageStatusUpdateToCacheQueue([{messageId, status: 'delivered'}])
             })
 
-            socket.on('read_ack', async ({ chatId, messageIds, userId }) => {
+            socket.on('read_ack', async ({ chatId, messageIds, userId, senderId }) => {
+                console.log('read ack runs !!')
                 await updateUnreadCount(userId, chatId);
                 // Notifying sender !!
-                io.to(senderId).emit('messages_read', { chatId, messageIds });
+                let senderSocket = onlineUsers.get(senderId)
+                if(!senderSocket){
+                    senderSocket = await getSocketIdOfUser(senderId);
+                }
+                console.log('sender socket: ', senderSocket)
+                if(senderSocket){
+                    io.to(senderSocket).emit('messages_read', { chatId, messageIds });
+                }
+                if(messageIds){
+                    const messageUpdates = messageIds.map(id => ({messageId: id, status: 'seen'}))
+                    await messageStatusUpdateToCacheQueue(messageUpdates)
+                }
             });
 
 

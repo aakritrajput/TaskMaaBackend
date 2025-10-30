@@ -1,16 +1,45 @@
 import { invalidateMessagesInChat } from "../cache/socket.cache.js";
-import { redis } from "../db/redis";
+import { redis } from "../db/redis.js";
 import { Chat } from "../models/chatModels/chat.model.js";
 import { Message } from "../models/chatModels/message.model.js";
+
+console.log('worker runs !!')
 
 async function processMessageQueue() {
     const batch = [];
     const keysSet = new Set();
+    const messageUpdates = [];
+    let moreMessages = true;
+    let moreMessageUpdates = true;
     for (let i = 0; i<50; i++){
-        const msg = await redis.rpop('message_queue');
-        if (!msg) break;
-        keysSet.add(msg.chatId)
-        batch.push(JSON.parse(msg));
+        // for new messages
+        let msg ;
+        if(moreMessages){
+            const rawMsg = await redis.rpop('message_queue');
+            if (rawMsg) {
+                const msg = JSON.parse(rawMsg);
+                keysSet.add(msg.chatId);
+                batch.push(msg);
+            }
+            
+        }
+        if(moreMessages && !msg){
+            moreMessages = false;
+        }
+
+        // for message updates 
+        let msgUpdate;
+        if(moreMessageUpdates){
+            msgUpdate = await redis.rpop('message_update_queue');
+            if(msgUpdate){
+                messageUpdates.push(JSON.parse(msgUpdate));
+            }
+        }
+        if(moreMessageUpdates && !msgUpdate){
+            moreMessageUpdates = false;
+        }
+
+        if(!moreMessageUpdates && !moreMessages) break ;
     }
 
     if(batch.length) {
@@ -35,8 +64,22 @@ async function processMessageQueue() {
             }
         }));
 
+        console.log('db write done !!')
+        
+        const msgUpdates = messageUpdates.map(upd => ({
+            updateOne: {
+                filter: {id: upd.messageId},
+                update: {
+                    $set: {
+                        status: upd.status
+                    }
+                }
+            }
+        }))
+
         
         await Chat.bulkWrite(updates)
+        await Message.bulkWrite(msgUpdates)
     }
 
 }

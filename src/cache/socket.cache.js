@@ -35,11 +35,13 @@ const getSocketIdOfUser = async(userId) => { // we will need this when sending m
 
 const messageToCacheQueue = async(message) => {
     try {
+
+        console.log('message: ', message)
         // pushing to queue
         await redis.lpush('message_queue', JSON.stringify(message));
 
         // Update last message cache
-        await redis.hset(`last_message:${chatId}`, 'text', message.content, 'timestamp', message.timestamp)
+        await redis.hset(`last_message:${message.chatId}`, 'text', message.content, 'timestamp', message.timestamp)
 
         // Increment unread count one to one chat 
         if(message.receiverId){
@@ -54,6 +56,18 @@ const messageToCacheQueue = async(message) => {
         return 'OK'
     } catch (error) {
         console.error('Error from messageToCacheQueue: ', error)
+        return null;
+    }
+}
+
+const messageStatusUpdateToCacheQueue = async(messages) => {
+    try {
+        // pushing to queue
+        await redis.lpush('message_update_queue', ...messages.map(m => JSON.stringify(m))
+    );
+        return 'OK'
+    } catch (error) {
+        console.error('Error from messageUpdatesToCacheQueue: ', error)
         return null;
     }
 }
@@ -230,4 +244,5 @@ export {
     messagesFromCache,
     messagesToCache,
     invalidateMessagesInChat,
+    messageStatusUpdateToCacheQueue,
 }

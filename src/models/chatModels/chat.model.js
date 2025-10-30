@@ -22,6 +22,12 @@ const chatSchema = new Schema({
         }
     ],
 
+    uniquePairKey: { // for one to one chats 
+        type: String,
+        unique: true,
+        sparse: true // allows multiple group chats to exist
+    },
+
     // Last message in the chat
     lastMessage: {
         text: { type: String, default: '' },
@@ -37,3 +43,13 @@ const chatSchema = new Schema({
 }, {timestamps: true})
 
 export const Chat = mongoose.model("Chat", chatSchema)
+
+chatSchema.pre("save", function (next) {
+  if (!this.isGroupChat) {
+    const ids = this.users.map(u => u.user.toString()).sort(); // sort to make [A,B] and [B,A] same
+    this.uniquePairKey = ids.join("_");
+  } else {
+    this.uniquePairKey = undefined; // groups can have same members
+  }
+  next();
+});

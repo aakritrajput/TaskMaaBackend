@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout } from "../controllers/user.controller.js";
+import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout, searchByUsername, getUserProfile, sendFriendRequest, responseToFriendRequest } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 const router = Router()
@@ -10,5 +10,9 @@ router.route('/authCheck').get(verifyJwt, authCheck)
 router.route('/getFriends').get(verifyJwt, getMyFriends)
 router.route('/delete').delete(verifyJwt, deleteAccountHandler)
 router.route('/logout').get(verifyJwt, logout)
+router.route('/search').get(verifyJwt, searchByUsername)
+router.route('/profile/:userId').get(verifyJwt, getUserProfile)
+router.route('/sendFriendRequest/:friendId').post(verifyJwt, sendFriendRequest)
+router.route('/responseToFriendRequest/:friendId').post(verifyJwt, responseToFriendRequest)
 
 export default router;

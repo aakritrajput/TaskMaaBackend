@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { addFriendsToCache, getFriendsFromCache, profileFromCache, profileToCache, removeFriendsFromCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
+import { addFriendsToCache, getFriendsFromCache, invalidateProfileFromCache, profileFromCache, profileToCache, removeFriendsFromCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
 const register = async(req, res) => {
@@ -106,6 +106,16 @@ const sendFriendRequest = async(req, res) => {
             throw new ApiError(400, "Please provide the user ID of the person you want to send the request to..")
         }
 
+        const existingRequest = await User.findOne({
+          _id: userId,
+          'requests.userId': friendId,
+        });
+        
+        if (existingRequest) {
+          throw new ApiError(400, 'Friend request already exists, Please refresh the page to see the updated request status!');
+        }
+
+
         const session = await mongoose.startSession()
         try {
             session.startTransaction()
@@ -119,7 +129,7 @@ const sendFriendRequest = async(req, res) => {
                 {
                     updateOne: {
                         filter: { _id: friendId},
-                        update: { $addToSet: {requests: {userId, sentOrRecieved: 'recieved'}}}, // recieved here for current users document 
+                        update: { $addToSet: {requests: {userId, sentOrRecieved: 'received'}}}, // recieved here for current users document 
                     }
                 }
             ], {session})
@@ -243,35 +253,60 @@ const searchByUsername = async(req, res) => {
     }
 }
 
-// const getUserProfile = async(req, res) => {
-//     try {
-//         const userId = req.params
-//         if(!userId){
-//             throw new ApiError(400, "No userId provided !!")
-//         }
+const getUserProfile = async(req, res) => {
+    try {
+        const {userId} = req.params
+        if(!userId){
+            throw new ApiError(400, "No userId provided !!")
+        }
 
-//         const dataFromCache = await profileFromCache(userId) ;
-//         if(dataFromCache){
-//             res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
-//             return ;
-//         }
-//         const dataFromDb = await Stats.findOne({userId}).select('userId profileType overallScore badges').populate('userId', 'username name profilePicture about').lean()
-//         if(!dataFromDb){
-//             throw new ApiError(400, "No user exist with the given userId. Please provide a valid userId")
-//         }
+        console.log('my user id: ', req.user._id, 'friends user id: ', userId)
 
-//         if(dataFromDb.profileType == 'private'){
-//             delete dataFromDb.badges;
-//             delete dataFromDb.overallScore;
-//             delete dataFromDb.userId.about;
-//         }
+        let dataFromCache = await profileFromCache(userId) ;
+        if(dataFromCache){
+            const isFriend = await checkIsMyFriend(req.user._id, userId)
+            if(!isFriend){
+                const {isRequested, sentOrRecieved} = await checkIsRequested(req.user._id, userId)
+                console.log('isRequested: ', isRequested, 'sentOrRecieved: ', sentOrRecieved)
+                dataFromCache = {...dataFromCache, isFriend, isRequested, sentOrRecieved}
+            }else{
+                dataFromCache = {...dataFromCache, isFriend, isRequested: false, sentOrRecieved: null};
+            }
 
-//         await profileToCache(userId, dataFromDb);
-//         res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
-//     } catch (error) {
-//         res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
-//     }
-// }
+            console.log('data given from cache: ', dataFromCache)
+            res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
+            return ;
+        }
+        let dataFromDb = await User.findById(userId).select('profileType overallScore badges username longestStreak name profilePicture about').lean()
+        if(!dataFromDb){
+            throw new ApiError(400, "No user exist with the given userId. Please provide a valid userId")
+        }
+
+        if(dataFromDb.profileType == 'private'){
+            delete dataFromDb.badges;
+            delete dataFromDb.overallScore;
+            delete dataFromDb.about;
+            delete dataFromDb.longestStreak
+        }
+
+        await profileToCache(userId, dataFromDb);
+
+        const isFriend = await checkIsMyFriend(req.user._id, userId)
+        if(!isFriend){
+            const {isRequested, sentOrRecieved} = await checkIsRequested(req.user._id, userId)
+            dataFromDb = {...dataFromDb, isFriend, isRequested, sentOrRecieved}
+            console.log('isRequested: ', isRequested, 'sentOrRecieved: ', sentOrRecieved)
+        }else{
+            dataFromDb = {...dataFromDb, isFriend, isRequested: false, sentOrRecieved: null};
+        }
+
+        console.log('data given from db: ', dataFromDb)
+
+        res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json({message: error.message || "Error getting your profile !!"})
+    }
+}
 
 const editProfile = async(req, res) => { // we have not created any caching function for profile as our access token already contains the profile info and the rest we are calling through seperate api's
     try {
@@ -315,6 +350,8 @@ const editProfile = async(req, res) => { // we have not created any caching func
         if(!refreshToken){
             throw new ApiError(500, "Error generatig refresh token !!")
         }
+
+        await invalidateProfileFromCache(userId)
 
         const options = {
             httpOnly: true,
@@ -398,6 +435,45 @@ const logout = async(req, res) => {
     }
 }
 
+
+// ---- utility function ----
+
+const checkIsMyFriend = async(userId, friendId) => {
+    try {
+        const friendsFromCache = await getFriendsFromCache(userId);
+        if(friendsFromCache){
+            const friendIds = friendsFromCache.map(friend => friend._id)
+            if(friendIds.includes(friendId)){
+                return true;
+            }else{
+                return false;
+            }
+        }
+        const friendsFromDb =  await User.findById(userId).select('friends') // herer we are not populating it as we are using it only for checking if friend or not ?
+
+        if(friendsFromDb.friends.includes(friendId)){
+            return true;
+        }
+        return false;
+    } catch (error) {
+        throw new ApiError(500, 'There was some problem while founding your friendship !!')
+    }
+}
+
+const checkIsRequested = async(userId, friendId) => {
+    try {
+        const requestedList =  await User.findById(userId).select('requests') // herer we are not populating it as we are using it only for checking if friend or not ?
+        console.log('requests: ', requestedList)
+        const requestedDoc = requestedList.requests.find(request => request.userId.toString() === friendId)
+        if(!requestedDoc){
+            return {isRequested: false, sentOrRecieved: null}
+        }
+        return {isRequested: true, sentOrRecieved: requestedDoc.sentOrRecieved};
+    } catch (error) {
+        throw new ApiError(500, `There was some problem while founding your request details !!, ${error}`)
+    }
+}
+
 export {
     register, 
     login,
@@ -405,9 +481,10 @@ export {
     sendFriendRequest,
     responseToFriendRequest,
     searchByUsername,
-    // getUserProfile,
+    getUserProfile,
     editProfile,
     deleteAccountHandler,
     getMyFriends,
-    logout
+    logout,
+    checkIsMyFriend
 }

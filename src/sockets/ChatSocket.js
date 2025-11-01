@@ -134,20 +134,19 @@ export default function chatSocket(server){
                     senderSocket = await getSocketIdOfUser(senderId);
                 }
                 if(senderSocket){
-                    io.to(senderSocket).emit('message_delivered', {messageId, chatId})
+                    console.log('delivered ack runs !!')
+                    io.to(senderSocket).emit('message_delivered', {chatId, messageId})
                 }
                 await messageStatusUpdateToCacheQueue([{messageId, status: 'delivered'}])
             })
 
             socket.on('read_ack', async ({ chatId, messageIds, userId, senderId }) => {
-                console.log('read ack runs !!')
                 await updateUnreadCount(userId, chatId);
                 // Notifying sender !!
                 let senderSocket = onlineUsers.get(senderId)
                 if(!senderSocket){
                     senderSocket = await getSocketIdOfUser(senderId);
                 }
-                console.log('sender socket: ', senderSocket)
                 if(senderSocket){
                     io.to(senderSocket).emit('messages_read', { chatId, messageIds });
                 }

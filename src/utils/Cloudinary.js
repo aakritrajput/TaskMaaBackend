@@ -16,7 +16,8 @@ const uploadOnCloudinary = async (filePath) => {
             resource_type: "auto"
         });
         fs.unlinkSync(filePath);
-        return image;
+        console.log('cloud runs')
+        return image.secure_url;
     }catch(error){
         fs.unlinkSync(filePath);
         console.log(`Error uploading on cloudinary ${error}`)
@@ -25,17 +26,19 @@ const uploadOnCloudinary = async (filePath) => {
 }
 
 const extractPublicId = (url) => {
+    console.log('url recieved: ', url)
     let parts = url.split('/upload/')[1]; // "v1690000000/TaskMaa/sample.jpg"
     parts = parts.split('.')[0];          // "v1690000000/TaskMaa/sample"
     
     const withoutVersion = parts.split('/').slice(1).join('/'); // remove "v1690000000"
+    console.log('without version: ', withoutVersion)
     return withoutVersion;
 };
 
 const deleteFromCloudinary = async (url) => {
     try {
         const publicId = extractPublicId(url);
-
+        console.log('public id: ', publicId)
         const result = await cloudinary.uploader.destroy(publicId);
 
         console.log("Cloudinary delete result:", result);

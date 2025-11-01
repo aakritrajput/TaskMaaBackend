@@ -3,7 +3,7 @@ import {User} from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { addFriendsToCache, getFriendsFromCache, invalidateProfileFromCache, profileFromCache, profileToCache, removeFriendsFromCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
-import { uploadOnCloudinary } from "../utils/Cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/Cloudinary.js";
 
 const register = async(req, res) => {
     try {
@@ -260,20 +260,16 @@ const getUserProfile = async(req, res) => {
             throw new ApiError(400, "No userId provided !!")
         }
 
-        console.log('my user id: ', req.user._id, 'friends user id: ', userId)
-
         let dataFromCache = await profileFromCache(userId) ;
         if(dataFromCache){
             const isFriend = await checkIsMyFriend(req.user._id, userId)
             if(!isFriend){
                 const {isRequested, sentOrRecieved} = await checkIsRequested(req.user._id, userId)
-                console.log('isRequested: ', isRequested, 'sentOrRecieved: ', sentOrRecieved)
                 dataFromCache = {...dataFromCache, isFriend, isRequested, sentOrRecieved}
             }else{
                 dataFromCache = {...dataFromCache, isFriend, isRequested: false, sentOrRecieved: null};
             }
 
-            console.log('data given from cache: ', dataFromCache)
             res.status(200).json(new ApiResponse(200, dataFromCache, "Successfully got user's profile !!"));
             return ;
         }
@@ -295,12 +291,9 @@ const getUserProfile = async(req, res) => {
         if(!isFriend){
             const {isRequested, sentOrRecieved} = await checkIsRequested(req.user._id, userId)
             dataFromDb = {...dataFromDb, isFriend, isRequested, sentOrRecieved}
-            console.log('isRequested: ', isRequested, 'sentOrRecieved: ', sentOrRecieved)
         }else{
             dataFromDb = {...dataFromDb, isFriend, isRequested: false, sentOrRecieved: null};
         }
-
-        console.log('data given from db: ', dataFromDb)
 
         res.status(200).json(new ApiResponse(200, dataFromDb, "Here is given user's profile"))
     } catch (error) {
@@ -310,20 +303,23 @@ const getUserProfile = async(req, res) => {
 
 const editProfile = async(req, res) => { // we have not created any caching function for profile as our access token already contains the profile info and the rest we are calling through seperate api's
     try {
+        console.log('edit profile runs !')
         const userId = req.user._id
         if(!userId){
             throw new ApiError(401, "Unauthorized Request !!")
         }
 
         const data = req.body
-        const profilePicUrl = req.file.path ; // now these are the 4 things that use can edit and hence atleast one of them should be not null 
-
+        const profilePicUrl = req.file ? req.file.path : null; // now these are the 4 things that use can edit and hence atleast one of them should be not null 
+        console.log('data: ', data, 'profile pic url: ', profilePicUrl)
         if(!data.name && !data.profileType && !data.about && !data.profilePicUrl){
             throw new ApiError(400, "Please provide something to edit - Nothing provided !!")
         }
         let newProfilePicUrl = '';
         if(profilePicUrl){
             if(req.user.profilePicture){
+                console.log('prev img delete run')
+                console.log(req.user.profilePicture)
                 await deleteFromCloudinary(req.user.profilePicture)
             }
             newProfilePicUrl = await uploadOnCloudinary(profilePicUrl)
@@ -435,6 +431,28 @@ const logout = async(req, res) => {
     }
 }
 
+const getRequestsIRecieved = async(req, res) => {
+    try {
+        const userId = req.user._id
+        if(!userId){
+            throw new ApiError(401, 'UnAuthenticated !!')
+        }
+
+        const userWithRequests = await User.findById(userId).select('requests').populate('requests.userId', 'username name profilePicture').lean()
+
+        if (!userWithRequests || !userWithRequests.requests){
+            res.status(200).json(new ApiResponse(200, [], "You don't have any recieved requests !!"))
+            return ;
+        }
+
+        const filteredRequests = userWithRequests.requests.filter(request => request.sentOrRecieved === 'recieved').map(request => request.userId)
+
+        res.status(200).json(new ApiResponse(200, filteredRequests, "Here are the requests that you have recieved !!"))
+    } catch (error) {
+         res.status(error.statusCode || 500).json({message: error.message || "There was some error logging you out !!" })
+    }
+}
+
 
 // ---- utility function ----
 
@@ -463,7 +481,6 @@ const checkIsMyFriend = async(userId, friendId) => {
 const checkIsRequested = async(userId, friendId) => {
     try {
         const requestedList =  await User.findById(userId).select('requests') // herer we are not populating it as we are using it only for checking if friend or not ?
-        console.log('requests: ', requestedList)
         const requestedDoc = requestedList.requests.find(request => request.userId.toString() === friendId)
         if(!requestedDoc){
             return {isRequested: false, sentOrRecieved: null}
@@ -486,5 +503,6 @@ export {
     deleteAccountHandler,
     getMyFriends,
     logout,
+    getRequestsIRecieved,
     checkIsMyFriend
 }

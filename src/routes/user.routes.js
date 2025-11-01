@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout, searchByUsername, getUserProfile, sendFriendRequest, responseToFriendRequest } from "../controllers/user.controller.js";
+import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout, searchByUsername, getUserProfile, sendFriendRequest, responseToFriendRequest, getRequestsIRecieved, editProfile } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router()
 
@@ -14,5 +15,7 @@ router.route('/search').get(verifyJwt, searchByUsername)
 router.route('/profile/:userId').get(verifyJwt, getUserProfile)
 router.route('/sendFriendRequest/:friendId').post(verifyJwt, sendFriendRequest)
 router.route('/responseToFriendRequest/:friendId').post(verifyJwt, responseToFriendRequest)
+router.route('/requestsIRecieved').get(verifyJwt, getRequestsIRecieved)
+router.route('/editProfile').put(verifyJwt, upload.single("profilePicture"), editProfile)
 
 export default router;

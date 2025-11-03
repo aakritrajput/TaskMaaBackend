@@ -10,6 +10,7 @@ import taskRouter from './routes/task.routes.js'
 import dashboardRoutes from './routes/dashboard.routes.js'
 import groupTaskRoutes from './routes/groupTask.routes.js'
 import chatRouter from './routes/chat.routes.js'
+import maaRouter from './routes/maa.routes.js'
 import './workers/messageWorker.js'
 
 const app = express()
@@ -30,6 +31,7 @@ app.use('/api/tasks', taskRouter)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/groupTask', groupTaskRoutes)
 app.use('/api/chat', chatRouter)
+app.use('/api/maa', maaRouter)
 
 const server = http.createServer(app);
 

@@ -109,6 +109,10 @@ const getMessagesOfChat = async(req, res) => { // if we in future want scale the
         }
 
         const MessagesFromCache = await messagesFromCache(chatId)
+        if(MessagesFromCache){
+            res.status(200).json(new ApiResponse(200, messagesFromDb, "Here are your chats !!"))
+            return ;
+        }
 
         const messagesFromDb = await Message.find({
             chatId

@@ -84,7 +84,7 @@ const updateUnreadCount = async(userId, chatId) => {
 
 const storeOfflineMessage = async(message) => {
     try {
-        const key = `offlineMessages:${message.receiverId}`
+        const key = `offlineMessages:${message.recieverId}`
         await redis.rpush(key, JSON.stringify(message)); // rpush becuase we want our messages to stay in the same order as they were sent !!
         return 'OK';
     } catch (error) {

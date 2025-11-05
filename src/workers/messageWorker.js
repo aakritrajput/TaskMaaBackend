@@ -3,8 +3,6 @@ import { redis } from "../db/redis.js";
 import { Chat } from "../models/chatModels/chat.model.js";
 import { Message } from "../models/chatModels/message.model.js";
 
-console.log('worker runs !!')
-
 async function processMessageQueue() {
     const batch = [];
     const keysSet = new Set();
@@ -63,8 +61,6 @@ async function processMessageQueue() {
                 }
             }
         }));
-
-        console.log('db write done !!')
         
         const msgUpdates = messageUpdates.map(upd => ({
             updateOne: {

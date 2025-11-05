@@ -4,11 +4,13 @@ import { Chat } from "../models/chatModels/chat.model.js";
 import { Message } from "../models/chatModels/message.model.js";
 
 async function processMessageQueue() {
+
     const batch = [];
     const keysSet = new Set();
     const messageUpdates = [];
     let moreMessages = true;
     let moreMessageUpdates = true;
+    
     for (let i = 0; i<50; i++){
         // for new messages
         let msg ;
@@ -77,7 +79,6 @@ async function processMessageQueue() {
         await Chat.bulkWrite(updates)
         await Message.bulkWrite(msgUpdates)
     }
-
 }
 
 setInterval(processMessageQueue, 2000) // here i have set the db writes to happen after 2 seconds and for now i even can set it more then it too as not much users will be there so in 2 seconds i think we will not be getting 50 messages - it will hardly be 10 😅

@@ -1,12 +1,14 @@
 import { Router } from "express";
-import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout, searchByUsername, getUserProfile, sendFriendRequest, responseToFriendRequest, getRequestsIRecieved, editProfile } from "../controllers/user.controller.js";
+import { authCheck, login, register, deleteAccountHandler, getMyFriends, logout, searchByUsername, getUserProfile, sendFriendRequest, responseToFriendRequest, getRequestsIRecieved, editProfile, verifyToken, resendVerificationLink } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
 
 const router = Router()
 
 router.route('/register').post(register)
+router.route('/register/verify-token').get(verifyToken)
 router.route('/login').post(login)
+router.route('/resendVerificationLink/:email').get(resendVerificationLink)
 router.route('/authCheck').get(verifyJwt, authCheck)
 router.route('/getFriends').get(verifyJwt, getMyFriends)
 router.route('/delete').delete(verifyJwt, deleteAccountHandler)

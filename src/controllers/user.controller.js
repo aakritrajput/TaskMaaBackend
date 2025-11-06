@@ -4,6 +4,97 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { addFriendsToCache, getFriendsFromCache, invalidateProfileFromCache, profileFromCache, profileToCache, removeFriendsFromCache, userPlateFromCache, userPlateToCache } from "../cache/user.cache.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/Cloudinary.js";
+import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
+
+const generateVerificationToken = (email) => {
+    const token = jwt.sign({email}, process.env.VERIFICATION_TOKEN_SECRET , { expiresIn: process.env.VERIFICATION_TOKEN_EXPIRY });
+    return token;
+  };
+
+const sendVerificationEmail = async (email, token) => {
+    try {
+      //api/v1/user/register/verify-token
+      const verificationLink = `http://localhost:3000/auth/verifyEmail?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+      const transporter = nodemailer.createTransport({
+        service: "gmail", // Use Gmail's service
+        auth: {
+          user: process.env.PROJECT_OWNER_EMAIL, // Project's email
+          pass: process.env.PROJECT_OWNER_PASSWORD, // Project's email password
+        },
+      });
+  
+      const mailOptions = {
+        from: `"TaskMaa" <${process.env.PROJECT_OWNER_EMAIL}>`, // Sender
+        to: email, // Recipient
+        subject: "Email Verification", // Email subject
+        html: `
+          <p>Hello,</p>
+          <p>Please verify your email by clicking the link below:</p>
+          <a href="${verificationLink}">Verify Email</a>
+          <p>If you did not request this, please ignore this email.</p>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+  
+      console.log("Verification email sent successfully to:", email);
+    } catch (error) {
+      console.log("Failed to send verification email:", error.message);
+      throw new ApiError(500, error.message || "Email sending failed. Please try again.");
+    }
+};
+
+const verifyToken = async(req,res)=>{
+    const {token, email} = req.query;
+    const decodedToken = decodeURIComponent(token)
+    const decodedEmail = decodeURIComponent(email)
+    
+    try {
+        if(!decodedToken || !decodedEmail){
+            throw new ApiError(500, "error decoding uri components")
+        }
+        const user = await User.find({
+                email: decodedEmail
+            })
+        if(user.length === 0){
+            throw new ApiError("error getting the user with decoded email")
+        }
+        const token = await jwt.verify(decodedToken, process.env.VERIFICATION_TOKEN_SECRET)
+        
+        if(token.email !== user[0].email){
+            console.log("token.email: ", token.email, "user.email: ", user.email)
+            throw new ApiError(400, "email in token does not match with the email in the database")
+        }
+        user[0].isVerified = true;
+        await user[0].save({validateBeforeSave: false})
+        res.status(200).json(new ApiResponse(200, {}, "Email successfully verified !"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json( error.message || "verification link expired or not valid !! ")
+    }
+}
+
+
+const resendVerificationLink = async(req, res)=> {
+    try {
+        const {email} = req.params
+        const decodedEmail = decodeURIComponent(email)
+        console.log(decodedEmail)
+        const user = await User.find({email: decodedEmail})
+        console.log("user:",user)
+        if(user.length === 0){
+            throw new ApiError(400, "No user with the given email !!")
+        }
+        if(user[0].isVerified ){
+            throw new ApiError(400, "User with the given email is already verified")
+        }
+        const verificationToken = generateVerificationToken(user[0].email);
+        await sendVerificationEmail(user[0].email, verificationToken);
+        res.status(200).json(new ApiResponse(200, {},"verification link sent successfully"))
+    } catch (error) {
+        res.status(error.statusCode || 500).json( error.message || "Error Sending Verification link")
+    }
+}
 
 const register = async(req, res) => {
     try {
@@ -38,7 +129,10 @@ const register = async(req, res) => {
             throw new ApiError(500, "There was a problem creating user on the backend!!")
         }
 
-        res.status(200).json(new ApiResponse(201, 'OK', "User created successfully !!"))
+        const verificationToken = generateVerificationToken(email);
+        await sendVerificationEmail(email, verificationToken)
+
+        res.status(200).json(new ApiResponse(201, 'OK', "User is successfully registered. Please check your inbox for email verification !"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error registering user !!"})
     }
@@ -53,6 +147,10 @@ const login = async(req, res) => {
         const user = await User.findOne({email})
         if(!user){
             throw new ApiError(404, "No user exists with this email, Please register first !!")
+        }
+
+        if(user.isVerified === false){
+            throw new ApiError(402, "Your email is not verified.")
         }
         const isPasswordCorrect = await user.comparePassword(password)
         if(!isPasswordCorrect){
@@ -425,7 +523,7 @@ const logout = async(req, res) => {
         .status(200)
         .clearCookie('accessToken', options)
         .cookie('refreshToken', options)
-        .json(new ApiResponse(200, safeUser, "Successfully logged out !!"))
+        .json(new ApiResponse(200, 'OK', "Successfully logged out !!"))
     } catch (error) {
          res.status(error.statusCode || 500).json({message: error.message || "There was some error logging you out !!" })
     }
@@ -492,6 +590,8 @@ const checkIsRequested = async(userId, friendId) => {
 }
 
 export {
+    verifyToken,
+    resendVerificationLink,
     register, 
     login,
     authCheck,

@@ -48,7 +48,6 @@ export const verifyJwt = async(req, res, next) => {
                 req.user = {_id: user._id, email: user.email, username: user.username, profileType: user.profileType , name: user.name, profilePicture: user.profilePicture} // here attached only few things so that the req. should match with the req. updated using access token as that also include only these three things !!
                 next();
             }else{
-                console.log('error is else', error.message)
                 res.status(error.statusCode || 401).json({message: error.message || "Invalid Access token.. Please login !!"})
             }
         } catch (err) {

@@ -32,6 +32,9 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/groupTask', groupTaskRoutes)
 app.use('/api/chat', chatRouter)
 app.use('/api/maa', maaRouter)
+app.get('/health', (_, res) => {
+    res.status(200).json({status: 'Running...'})
+})
 
 const server = http.createServer(app);
 

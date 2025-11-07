@@ -79,9 +79,7 @@ const resendVerificationLink = async(req, res)=> {
     try {
         const {email} = req.params
         const decodedEmail = decodeURIComponent(email)
-        console.log(decodedEmail)
         const user = await User.find({email: decodedEmail})
-        console.log("user:",user)
         if(user.length === 0){
             throw new ApiError(400, "No user with the given email !!")
         }
@@ -129,10 +127,10 @@ const register = async(req, res) => {
             throw new ApiError(500, "There was a problem creating user on the backend!!")
         }
 
+        res.status(200).json(new ApiResponse(201, 'OK', "User is successfully registered. Please check your inbox for email verification. Note: It can take some time to show up verfication email. !"))
+
         const verificationToken = generateVerificationToken(email);
         await sendVerificationEmail(email, verificationToken)
-
-        res.status(200).json(new ApiResponse(201, 'OK', "User is successfully registered. Please check your inbox for email verification !"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error registering user !!"})
     }

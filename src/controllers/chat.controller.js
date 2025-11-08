@@ -94,7 +94,7 @@ const getChatInterface = async(req, res) => {
         const chats = await Chat.find({
             _id: {$in: chatIds}
         }).populate("users.user", "username profilePicture").sort({ updatedAt: -1 });
-
+        console.log("users chat interface: ", chats)
         res.status(200).json(new ApiResponse(200, chats, "Here are your chats !!"))
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || 'Oops.. There was some Error creating your group chat !!'})

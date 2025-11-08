@@ -17,18 +17,19 @@ const sendVerificationEmail = async (email, token) => {
       //api/v1/user/register/verify-token
       const verificationLink = `http://localhost:3000/auth/verifyEmail?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
       console.log('got the verification link !', verificationLink)
+      
       const transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true, // use SSL
-        auth: {
-          user: process.env.PROJECT_OWNER_EMAIL, // Project's email
-          pass: process.env.PROJECT_OWNER_PASSWORD, // Project's email password
-        },
+         host: process.env.BREVO_SMTP_SERVER,
+         port: process.env.BREVO_SMTP_PORT,
+         secure: false, // false for 587, true for 465
+         auth: {
+           user: process.env.BREVO_USER,
+           pass: process.env.BREVO_PASSWORD,
+         },
       });
   
       const mailOptions = {
-        from: `"TaskMaa" <${process.env.PROJECT_OWNER_EMAIL}>`, // Sender
+        from:`"TaskMaa" <${process.env.BREVO_USER}>`,
         to: email, // Recipient
         subject: "Email Verification", // Email subject
         html: `

@@ -14,9 +14,8 @@ export default function chatSocket(server){
 
     io.on('connection', async(socket) => { // right now we are just handling the basic errors and it can be extended to handle all deeper errors like which may come from caching functions 
         try {
-            console.log('User connected: ', socket.id);
             const userId = socket.handshake.query.userId
-            console.log('Got the user id: ', userId)
+            
             if (!userId) return ;
 
             // now first if there were any offline messages for this user then we will emit that immediately 

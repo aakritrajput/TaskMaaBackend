@@ -539,14 +539,14 @@ const getRequestsIRecieved = async(req, res) => {
         }
 
         const userWithRequests = await User.findById(userId).select('requests').populate('requests.userId', 'username name profilePicture').lean()
-        console.log('user with requests: ', userWithRequests)
+        
         if (!userWithRequests || !userWithRequests.requests){
             res.status(200).json(new ApiResponse(200, [], "You don't have any recieved requests !!"))
             return ;
         }
 
         const filteredRequests = userWithRequests.requests.filter(request => request.sentOrRecieved === 'recieved').map(request => request.userId)
-        console.log('filteredReqests: ', filteredRequests)
+        
         res.status(200).json(new ApiResponse(200, filteredRequests, "Here are the requests that you have recieved !!"))
     } catch (error) {
          res.status(error.statusCode || 500).json({message: error.message || "There was some error logging you out !!" })

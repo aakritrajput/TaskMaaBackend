@@ -229,7 +229,7 @@ const sendFriendRequest = async(req, res) => {
                 {
                     updateOne: {
                         filter: { _id: friendId},
-                        update: { $addToSet: {requests: {userId, sentOrRecieved: 'received'}}}, // recieved here for current users document 
+                        update: { $addToSet: {requests: {userId, sentOrRecieved: 'recieved'}}}, // recieved here for current users document 
                     }
                 }
             ], {session})
@@ -540,7 +540,6 @@ const getRequestsIRecieved = async(req, res) => {
 
         const userWithRequests = await User.findById(userId).select('requests').populate('requests.userId', 'username name profilePicture').lean()
         console.log('user with requests: ', userWithRequests)
-        
         if (!userWithRequests || !userWithRequests.requests){
             res.status(200).json(new ApiResponse(200, [], "You don't have any recieved requests !!"))
             return ;

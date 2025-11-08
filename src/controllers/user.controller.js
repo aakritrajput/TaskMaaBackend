@@ -131,10 +131,10 @@ const register = async(req, res) => {
             throw new ApiError(500, "There was a problem creating user on the backend!!")
         }
 
-        res.status(200).json(new ApiResponse(201, 'OK', "User is successfully registered. Please check your inbox for email verification. Note: It can take some time to show up verfication email. !"))
+        res.status(200).json(new ApiResponse(201, 'OK', "User is successfully registered !"))
 
-        const verificationToken = generateVerificationToken(email);
-        await sendVerificationEmail(email, verificationToken)
+        // const verificationToken = generateVerificationToken(email);
+        // await sendVerificationEmail(email, verificationToken)
     } catch (error) {
         res.status(error.statusCode || 500).json({message: error.message || "Error registering user !!"})
     }
@@ -151,9 +151,9 @@ const login = async(req, res) => {
             throw new ApiError(404, "No user exists with this email, Please register first !!")
         }
 
-        if(user.isVerified === false){
-            throw new ApiError(402, "Your email is not verified.")
-        }
+        // if(user.isVerified === false){
+        //     throw new ApiError(402, "Your email is not verified.")
+        // }
         const isPasswordCorrect = await user.comparePassword(password)
         if(!isPasswordCorrect){
             throw new ApiError(400, "Incorrect Password, please enter correct password !!")

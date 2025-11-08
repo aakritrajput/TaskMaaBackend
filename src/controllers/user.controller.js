@@ -16,8 +16,11 @@ const sendVerificationEmail = async (email, token) => {
     try {
       //api/v1/user/register/verify-token
       const verificationLink = `http://localhost:3000/auth/verifyEmail?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+      console.log('got the verification link !', verificationLink)
       const transporter = nodemailer.createTransport({
-        service: "gmail", // Use Gmail's service
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true, // use SSL
         auth: {
           user: process.env.PROJECT_OWNER_EMAIL, // Project's email
           pass: process.env.PROJECT_OWNER_PASSWORD, // Project's email password

@@ -166,7 +166,7 @@ const login = async(req, res) => {
 
         const refreshToken = user.generateRefreshToken()
         if(!refreshToken){
-            throw new ApiError(500, "Error generatig refresh token !!")
+            throw new ApiError(500, "Error generating refresh token !!")
         }
 
         const { hashedPassword, ...safeUser } = user.toObject();

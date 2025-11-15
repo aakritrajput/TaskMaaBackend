@@ -116,3 +116,16 @@ Every tool, every middleware, and every design decision came from solving real p
 Each improvement didn’t just optimize performance — it refined my understanding of *systems thinking.*
 
 ---
+
+
+## ⌛ Future Improvements
+
+- We can add more AI responses for other tasks.
+- Badge assignment to users based on their achievments.
+- Email verification part -- code already written but not implemented as nodemailer was taking too long for sending emails which was not good for our initial UX.
+- In general tasks or group tasks we have not set the validation to not choose passed date. so can implement that too.
+- When we send request to user then we can have the option to cancel the request which we don't have right now.
+- In chats we can implement sent, delivered, and read states -- the code for this is actually written but there was some issue with status showing up as sometimes it is showing properly but some times as we are moving from one chat to other it is giving some problem - so we can see that.
+- Can also implement deleting specific messages from chat.
+- Can implement media sharing on chat.
+- In profile we can implement delete profile (the code of which is already written) but on deleting the chats and other tables data is not deleting so can do this small improvement and then can public this feature.

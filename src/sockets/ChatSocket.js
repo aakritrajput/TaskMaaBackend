@@ -69,7 +69,6 @@ export default function chatSocket(server){
                     io.to(receiverSocketId).emit('recieve-message', message);
 
                 } else {  // for offline ones store them in cache !!
-                    console.log(`User ${recieverId} is offline. Storing message for later delivery.`);
                     await storeOfflineMessage(message);
                 }
 
